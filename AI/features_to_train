@@ -1,0 +1,8 @@
+workout_id,duration_mins,avg_hr,max_hr,hr_spikes,pct_time_low,avg_emg,emg_fatigue,total_reps,avg_reps_set,effectiveness_label
+w_001,45,135,165,4,12.5,450,18.2,120,12,2
+w_002,30,105,120,0,75.0,150,2.1,40,10,0
+w_003,60,155,185,9,5.0,620,35.4,180,10,3
+w_004,50,120,140,2,35.0,310,11.5,90,15,1
+
+AVG_REPS PER Set, prob nu fac avand in vedere ca il antrenez pe workout
+Start workout button, and stop. At stop it sends data to aws than to the web platform
