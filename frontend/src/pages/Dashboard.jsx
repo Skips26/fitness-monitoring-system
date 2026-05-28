@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { workoutsApi } from '../lib/api';
 import WorkoutCard from '../components/WorkoutCard';
 import EffectivenessGauge from '../components/EffectivenessGauge';
+import { motion } from 'framer-motion';
 
 export default function Dashboard() {
   const [workouts, setWorkouts] = useState([]);
@@ -46,47 +47,121 @@ export default function Dashboard() {
     );
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 60 } }
+  };
+
   return (
-    <div className="page-container">
-      <div className="page-header animate-in">
+    <div className="page-container" style={{ position: 'relative' }}>
+      {/* Background Glows for Glassmorphism */}
+      <motion.div 
+        animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: 'fixed', top: '-10%', right: '-5%', width: '500px', height: '500px',
+          background: 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)',
+          pointerEvents: 'none', zIndex: -1, borderRadius: '50%'
+        }}
+      />
+
+      <motion.div 
+        className="page-header"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <h1>Dashboard</h1>
-        <p>Your workout performance at a glance</p>
-      </div>
+        <p style={{ color: 'var(--text-secondary)' }}>Your workout performance at a glance</p>
+      </motion.div>
 
       {error && <div className="alert alert-error">{error}</div>}
 
       {/* Stats Overview */}
-      <div className="stats-grid animate-in animate-in-delay-1">
-        <div className="stat-card">
-          <div className="stat-icon">🏋️</div>
+      <motion.div 
+        className="stats-grid"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        <motion.div 
+          className="stat-card" 
+          variants={itemVariants}
+          whileHover={{ y: -5, boxShadow: '0 15px 30px rgba(0,0,0,0.2)', backgroundColor: 'rgba(30, 41, 59, 0.8)' }}
+          style={{ backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <div className="stat-icon" style={{ color: 'var(--accent-primary)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          </div>
           <div className="stat-value">{totalWorkouts}</div>
           <div className="stat-label">Total Workouts</div>
-        </div>
+        </motion.div>
 
-        <div className="stat-card">
-          <div className="stat-icon">✅</div>
+        <motion.div 
+          className="stat-card" 
+          variants={itemVariants}
+          whileHover={{ y: -5, boxShadow: '0 15px 30px rgba(0,0,0,0.2)', backgroundColor: 'rgba(30, 41, 59, 0.8)' }}
+          style={{ backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <div className="stat-icon" style={{ color: 'var(--accent-success)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          </div>
           <div className="stat-value">{analyzedWorkouts.length}</div>
           <div className="stat-label">Analyzed</div>
-        </div>
+        </motion.div>
 
-        <div className="stat-card">
-          <div className="stat-icon">⏳</div>
+        <motion.div 
+          className="stat-card" 
+          variants={itemVariants}
+          whileHover={{ y: -5, boxShadow: '0 15px 30px rgba(0,0,0,0.2)', backgroundColor: 'rgba(30, 41, 59, 0.8)' }}
+          style={{ backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <div className="stat-icon" style={{ color: 'var(--accent-warning)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          </div>
           <div className="stat-value">{pendingCount}</div>
           <div className="stat-label">Pending</div>
-        </div>
+        </motion.div>
 
-        <div className="stat-card">
-          <div className="stat-icon">🎯</div>
+        <motion.div 
+          className="stat-card" 
+          variants={itemVariants}
+          whileHover={{ y: -5, boxShadow: '0 15px 30px rgba(0,0,0,0.2)', backgroundColor: 'rgba(30, 41, 59, 0.8)' }}
+          style={{ backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <div className="stat-icon" style={{ color: 'var(--accent-secondary)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+          </div>
           <div className="stat-value">{avgConfidence > 0 ? `${Math.round(avgConfidence * 100)}%` : '—'}</div>
           <div className="stat-label">Avg Confidence</div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Main Grid */}
-      <div className="dashboard-grid mt-xl">
+      <motion.div 
+        className="dashboard-grid mt-xl"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
         {/* Latest Result */}
-        <div className="card animate-in animate-in-delay-2">
-          <h3 style={{ marginBottom: 'var(--space-lg)' }}>Latest Result</h3>
+        <motion.div 
+          className="card" 
+          variants={itemVariants}
+          style={{ backdropFilter: 'blur(10px)', background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <h3 style={{ marginBottom: 'var(--space-lg)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20v-6M6 20V10M18 20V4"></path></svg>
+            Latest Result
+          </h3>
           {latestAnalyzed ? (
             <div className="text-center">
               <EffectivenessGauge
@@ -111,18 +186,27 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="empty-state">
-              <div className="empty-state-icon">📊</div>
+              <div className="empty-state-icon" style={{ opacity: 0.5 }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+              </div>
               <p>No analyzed workouts yet</p>
               <p style={{ fontSize: '0.8rem', marginTop: '4px' }}>
                 Complete a workout with the belt to see results here
               </p>
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* Effectiveness Distribution */}
-        <div className="card animate-in animate-in-delay-3">
-          <h3 style={{ marginBottom: 'var(--space-lg)' }}>Effectiveness Breakdown</h3>
+        <motion.div 
+          className="card" 
+          variants={itemVariants}
+          style={{ backdropFilter: 'blur(10px)', background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <h3 style={{ marginBottom: 'var(--space-lg)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+            Effectiveness Breakdown
+          </h3>
           {analyzedWorkouts.length > 0 ? (
             <div className="prob-bars">
               {['Maximum', 'High', 'Moderate', 'Low'].map((level) => {
@@ -131,30 +215,46 @@ export default function Dashboard() {
                 const colorVar = `var(--eff-${level.toLowerCase()})`;
 
                 return (
-                  <div className="prob-bar-row" key={level}>
+                  <motion.div 
+                    className="prob-bar-row" 
+                    key={level}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                  >
                     <span className="prob-bar-label" style={{ color: colorVar }}>{level}</span>
-                    <div className="prob-bar-track">
-                      <div
+                    <div className="prob-bar-track" style={{ background: 'rgba(0,0,0,0.2)' }}>
+                      <motion.div
                         className="prob-bar-fill"
-                        style={{ width: `${pct}%`, background: colorVar }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 1, type: 'spring' }}
+                        style={{ background: colorVar }}
                       />
                     </div>
                     <span className="prob-bar-value">{count}</span>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
           ) : (
             <div className="empty-state">
-              <div className="empty-state-icon">📈</div>
+              <div className="empty-state-icon" style={{ opacity: 0.5 }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+              </div>
               <p>Data will appear after your first analyzed workout</p>
             </div>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Workout History */}
-      <div className="animate-in animate-in-delay-4 mt-xl">
+      <motion.div 
+        className="mt-xl"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
         <div className="section-header">
           <h2>Workout History</h2>
           {pendingCount > 0 && (
@@ -163,15 +263,24 @@ export default function Dashboard() {
         </div>
 
         {workouts.length > 0 ? (
-          <div className="workout-list">
+          <motion.div 
+            className="workout-list"
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+          >
             {workouts.map((workout) => (
-              <WorkoutCard key={workout.id} workout={workout} />
+              <motion.div key={workout.id} variants={itemVariants} whileHover={{ scale: 1.01 }}>
+                <WorkoutCard workout={workout} />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         ) : (
-          <div className="card">
+          <div className="card" style={{ backdropFilter: 'blur(10px)', background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="empty-state">
-              <div className="empty-state-icon">🏋️</div>
+              <div className="empty-state-icon" style={{ opacity: 0.5 }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
+              </div>
               <h3>No workouts yet</h3>
               <p style={{ marginTop: 'var(--space-sm)' }}>
                 Start a workout session with the fitness belt. Once you stop,
@@ -180,7 +289,7 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }
