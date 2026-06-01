@@ -59,6 +59,42 @@ print("[ML] SHAP explainer ready")
 
 
 # =============================================================================
+#  THRESHOLDS FOR DESCRIPTIONS
+# =============================================================================
+
+CATEGORICAL_COLS = ['fitness_level', 'workout_type', 'athlete_type', 'limb_length']
+
+_THRESHOLDS = {
+    'age':           (None,  'age',                        'age'),
+    'weight_kg':     (80,    'heavier body weight',        'lighter body weight'),
+    'body_fat_pct':  (20,    'higher body fat',            'lower body fat'),
+    'duration_mins': (40,    'long session duration',      'short session duration'),
+    'avg_hr':        (125,   'elevated avg heart rate',    'low avg heart rate'),
+    'max_hr':        (145,   'high peak heart rate',       'low peak heart rate'),
+    'hr_spikes':     (4,     'frequent HR spikes',         'few HR spikes'),
+    'pct_time_low':  (25,    'lots of low-HR zone time',   'minimal low-HR zone time'),
+    'avg_emg':       (400,   'strong muscle engagement',   'weak muscle engagement'),
+    'emg_fatigue':   (18,    'significant muscle fatigue', 'minimal muscle fatigue'),
+    'total_reps':    (90,    'high rep count',             'low rep count'),
+}
+
+def _format_value(feat, val):
+    if feat in ['avg_hr', 'max_hr']:
+        return f"{val:.0f} BPM"
+    elif feat in ['pct_time_low', 'emg_fatigue', 'body_fat_pct']:
+        return f"{val:.1f}%"
+    elif feat == 'avg_emg':
+        return f"{val:.0f} (EMG units)"
+    elif feat == 'duration_mins':
+        return f"{val:.0f} min"
+    elif feat == 'weight_kg':
+        return f"{val:.1f} kg"
+    elif feat == 'age':
+        return f"{int(val)} yrs"
+    else:
+        return f"{val}"
+
+# =============================================================================
 #  PREDICTION FUNCTION
 # =============================================================================
 
@@ -110,20 +146,23 @@ def predict_workout(features: dict, top_k: int = 3) -> dict:
         except Exception:
             shap_for_class = np.zeros(len(FEATURE_COLS))
 
-    # Rank features by absolute SHAP contribution
+    # Rank features by positive SHAP contribution to the predicted class
     feat_shap = list(zip(FEATURE_COLS, shap_for_class, sample_df.iloc[0]))
-    feat_shap.sort(key=lambda x: abs(x[1]), reverse=True)
+    feat_shap.sort(key=lambda x: x[1], reverse=True)
 
     # Build explanation
     top_factors = []
     for feat_name, shap_val, feat_val in feat_shap[:top_k]:
         direction = "positive" if shap_val > 0 else "negative"
-        desc_template = FEATURE_DESCRIPTIONS[feat_name][direction]
-
-        try:
-            desc = desc_template.format(feat_val)
-        except (ValueError, TypeError):
-            desc = f"{feat_name}: {feat_val}"
+        
+        if feat_name in CATEGORICAL_COLS:
+            desc = f"{feat_name.replace('_', ' ')} ({feat_val})"
+        elif feat_name in _THRESHOLDS and _THRESHOLDS[feat_name][0] is not None:
+            thresh, high_label, low_label = _THRESHOLDS[feat_name]
+            label_txt = high_label if float(feat_val) > thresh else low_label
+            desc = f"{label_txt} ({_format_value(feat_name, float(feat_val))})"
+        else:
+            desc = f"{feat_name.replace('_', ' ')} ({_format_value(feat_name, float(feat_val))})"
 
         top_factors.append(
             {

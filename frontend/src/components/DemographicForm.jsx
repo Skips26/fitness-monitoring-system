@@ -5,6 +5,7 @@ export default function DemographicForm({ initialData, onSubmit, submitLabel = '
     first_name: initialData?.first_name || '',
     last_name: initialData?.last_name || '',
     age: initialData?.age || '',
+    weight_kg: initialData?.weight_kg || '',
     fitness_level: initialData?.fitness_level || 'medium',
     athlete_type: initialData?.athlete_type || 'gym_bro',
     body_fat_pct: initialData?.body_fat_pct || '',
@@ -21,6 +22,7 @@ export default function DemographicForm({ initialData, onSubmit, submitLabel = '
     onSubmit({
       ...formData,
       age: parseInt(formData.age),
+      weight_kg: parseFloat(formData.weight_kg),
       body_fat_pct: parseFloat(formData.body_fat_pct),
     });
   };
@@ -74,6 +76,25 @@ export default function DemographicForm({ initialData, onSubmit, submitLabel = '
           />
         </div>
 
+        <div className="form-group">
+          <label className="form-label" htmlFor="weight_kg">Weight (kg)</label>
+          <input
+            id="weight_kg"
+            className="form-input"
+            type="number"
+            name="weight_kg"
+            value={formData.weight_kg}
+            onChange={handleChange}
+            min="50"
+            max="130"
+            step="0.1"
+            placeholder="80.0"
+            required
+          />
+        </div>
+      </div>
+
+      <div className="form-grid">
         <div className="form-group">
           <label className="form-label" htmlFor="body_fat_pct">Body Fat %</label>
           <input

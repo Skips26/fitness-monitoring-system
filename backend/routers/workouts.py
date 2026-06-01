@@ -195,7 +195,7 @@ async def analyze_workout(
     # 2. Fetch user demographics
     profile_result = (
         db.table("profiles")
-        .select("age, fitness_level, athlete_type, body_fat_pct, limb_length")
+        .select("age, weight_kg, fitness_level, athlete_type, body_fat_pct, limb_length")
         .eq("id", user["id"])
         .execute()
     )
@@ -210,8 +210,9 @@ async def analyze_workout(
 
     # 3. Merge features and run prediction
     features = {
-        # Demographics (6)
+        # Demographics (6 + weight)
         "age": profile["age"],
+        "weight_kg": float(profile["weight_kg"]),
         "fitness_level": profile["fitness_level"],
         "workout_type": workout["workout_type"],
         "athlete_type": profile["athlete_type"],
