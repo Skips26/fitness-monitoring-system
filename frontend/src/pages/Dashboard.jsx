@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import { workoutsApi } from '../lib/api';
 import WorkoutCard from '../components/WorkoutCard';
 import EffectivenessGauge from '../components/EffectivenessGauge';
+import ManualWorkoutForm from '../components/ManualWorkoutForm';
 import { motion } from 'framer-motion';
 
 export default function Dashboard() {
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [submittingManual, setSubmittingManual] = useState(false);
 
   useEffect(() => {
     loadWorkouts();
@@ -22,6 +25,20 @@ export default function Dashboard() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleManualSubmit = async (payload) => {
+    setSubmittingManual(true);
+    setError('');
+    try {
+      await workoutsApi.create(payload);
+      setShowManualForm(false);
+      await loadWorkouts(); // reload list
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmittingManual(false);
     }
   };
 
@@ -256,11 +273,29 @@ export default function Dashboard() {
         transition={{ duration: 0.5, delay: 0.4 }}
       >
         <div className="section-header">
-          <h2>Workout History</h2>
-          {pendingCount > 0 && (
-            <span className="badge badge-pending">{pendingCount} pending</span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+            <h2>Workout History</h2>
+            {pendingCount > 0 && (
+              <span className="badge badge-pending">{pendingCount} pending</span>
+            )}
+          </div>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => setShowManualForm(!showManualForm)}
+          >
+            {showManualForm ? 'Hide Form' : '+ Log Manual Workout'}
+          </button>
         </div>
+
+        {showManualForm && (
+          <div style={{ marginBottom: 'var(--space-xl)' }}>
+            <ManualWorkoutForm 
+              onSubmit={handleManualSubmit} 
+              onCancel={() => setShowManualForm(false)}
+              loading={submittingManual}
+            />
+          </div>
+        )}
 
         {workouts.length > 0 ? (
           <motion.div 

@@ -17,6 +17,7 @@ class ProfileUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     age: Optional[int] = Field(None, ge=13, le=100)
+    weight_kg: Optional[float] = Field(None, ge=50.0, le=130.0)
     fitness_level: Optional[Literal["low", "medium", "high"]] = None
     athlete_type: Optional[Literal["powerlifter", "hybrid", "gym_bro", "non_athletic"]] = None
     body_fat_pct: Optional[float] = Field(None, ge=3.0, le=50.0)
@@ -27,6 +28,7 @@ class ProfileCreate(BaseModel):
     first_name: str
     last_name: str
     age: int = Field(ge=13, le=100)
+    weight_kg: float = Field(ge=50.0, le=130.0)
     fitness_level: Literal["low", "medium", "high"]
     athlete_type: Literal["powerlifter", "hybrid", "gym_bro", "non_athletic"]
     body_fat_pct: float = Field(ge=3.0, le=50.0)
@@ -38,6 +40,7 @@ class ProfileResponse(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     age: Optional[int] = None
+    weight_kg: Optional[float] = None
     fitness_level: Optional[str] = None
     athlete_type: Optional[str] = None
     body_fat_pct: Optional[float] = None

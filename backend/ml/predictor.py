@@ -110,9 +110,9 @@ def predict_workout(features: dict, top_k: int = 3) -> dict:
         except Exception:
             shap_for_class = np.zeros(len(FEATURE_COLS))
 
-    # Rank features by absolute SHAP contribution
+    # Rank features by positive SHAP contribution to the predicted class
     feat_shap = list(zip(FEATURE_COLS, shap_for_class, sample_df.iloc[0]))
-    feat_shap.sort(key=lambda x: abs(x[1]), reverse=True)
+    feat_shap.sort(key=lambda x: x[1], reverse=True)
 
     # Build explanation
     top_factors = []

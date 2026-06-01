@@ -43,6 +43,7 @@ export const profileApi = {
 export const workoutsApi = {
   list: () => apiFetch('/workouts'),
   get: (id) => apiFetch(`/workouts/${id}`),
+  create: (data) => apiFetch('/workouts', { method: 'POST', body: JSON.stringify(data) }),
   setType: (id, workoutType) =>
     apiFetch(`/workouts/${id}/type`, {
       method: 'PUT',
