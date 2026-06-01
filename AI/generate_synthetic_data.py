@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-  SYNTHETIC GYM WORKOUT DATA GENERATOR  (v3)
+  SYNTHETIC GYM WORKOUT DATA GENERATOR  (v4)
   ───────────────────────────────────────────
   Generates a balanced, gym-specific dataset for training a workout
   effectiveness classification model.
 
-  Features (matching Raspberry Pi hardware output exactly):
+  Features (Raspberry Pi hardware + user-profile demographics):
       workout_id     – auto-generated UUID  (dropped before training)
+      weight_kg      – body weight in kilograms  (from user profile)
       duration_mins  – length of workout in minutes
       avg_hr         – average heart rate (BPM)
       max_hr         – maximum heart rate (BPM)
@@ -24,7 +25,9 @@
       2 = High         (solid bodyweight, intense shorter, good gym session)
       3 = Maximum      (full beast mode, heavy powerlifting, high-rep endurance)
 
-  Dataset: 12000 samples total, 3000 per class, 27 sub-profiles
+  Dataset: ~18000 base samples (4500/class, 27 sub-profiles) × 2.5 scale
+            + ~2400 edge-case samples (8 interpolated profiles × 300)
+            Grand total ≈ 51 000 samples
 =============================================================================
 """
 
@@ -61,14 +64,14 @@ OUTPUT_PATH = os.path.join(SCRIPT_DIR, "synthetic_workouts.csv")
 PROFILES = {
 
     # =================================================================
-    #  LABEL 0: LOW EFFECTIVENESS  (3000 samples, 7 sub-profiles)
+    #  LABEL 0: LOW EFFECTIVENESS  (4500 samples, 8 sub-profiles)
     # =================================================================
     0: [
         {
             # Ultra-short burst: extreme intensity, way too short.
             # Even max effort can't save a 2-12 minute "workout".
             'name': 'ultra_short_burst',
-            'count': 400,
+            'count': 600,
             'duration_mins':  (2, 12),
             'avg_hr':         (120, 175),
             'max_hr_delta':   (15, 35),
@@ -82,7 +85,7 @@ PROFILES = {
             # Phone scrolling: 40-90 min at the gym but barely lifting.
             # Time alone does not equal effectiveness.
             'name': 'phone_scrolling',
-            'count': 400,
+            'count': 600,
             'duration_mins':  (40, 90),
             'avg_hr':         (65, 92),
             'max_hr_delta':   (8, 22),
@@ -96,7 +99,7 @@ PROFILES = {
             # Short and lazy: low duration AND low effort.
             # Did one or two easy sets and bounced.
             'name': 'short_lazy',
-            'count': 350,
+            'count': 525,
             'duration_mins':  (5, 18),
             'avg_hr':         (72, 105),
             'max_hr_delta':   (8, 20),
@@ -110,7 +113,7 @@ PROFILES = {
             # Medium duration, halfhearted: 20-35 min but barely engaging
             # muscles. Going through the motions with zero push.
             'name': 'medium_halfhearted',
-            'count': 350,
+            'count': 525,
             'duration_mins':  (20, 38),
             'avg_hr':         (70, 98),
             'max_hr_delta':   (8, 20),
@@ -125,7 +128,7 @@ PROFILES = {
             # (extremely high EMG) and leaves after 3-10 min.
             # Impressive weight, but not a workout.
             'name': 'short_heavy_singles',
-            'count': 350,
+            'count': 525,
             'duration_mins':  (3, 10),
             'avg_hr':         (100, 140),
             'max_hr_delta':   (20, 40),
@@ -139,7 +142,7 @@ PROFILES = {
             # Distracted gym: shows up for 25-50 min but is constantly
             # resting, chatting, inconsistent. Sporadic effort bursts.
             'name': 'distracted_gym',
-            'count': 400,
+            'count': 600,
             'duration_mins':  (25, 55),
             'avg_hr':         (75, 100),
             'max_hr_delta':   (10, 28),
@@ -153,7 +156,7 @@ PROFILES = {
             # Fidgeting/light movement: extremely high reps but zero intensity.
             # Simulates restless leg, playing around, etc.
             'name': 'fidgeting_high_reps',
-            'count': 350,
+            'count': 525,
             'duration_mins':  (20, 90),
             'avg_hr':         (65, 85),
             'max_hr_delta':   (5, 15),
@@ -167,7 +170,7 @@ PROFILES = {
             # Warmup-only: light movement for 3-12 min, stretching,
             # foam rolling, a few bodyweight reps. Never gets going.
             'name': 'warmup_only',
-            'count': 400,
+            'count': 600,
             'duration_mins':  (3, 14),
             'avg_hr':         (70, 100),
             'max_hr_delta':   (5, 18),
@@ -180,14 +183,14 @@ PROFILES = {
     ],
 
     # =================================================================
-    #  LABEL 1: MODERATE EFFECTIVENESS  (3000 samples, 7 sub-profiles)
+    #  LABEL 1: MODERATE EFFECTIVENESS  (4500 samples, 7 sub-profiles)
     # =================================================================
     1: [
         {
             # Light recovery: gentle bodyweight, easy stretching with
             # movement. Active recovery day, 20-35 min.
             'name': 'light_recovery',
-            'count': 450,
+            'count': 675,
             'duration_mins':  (20, 35),
             'avg_hr':         (85, 112),
             'max_hr_delta':   (10, 25),
@@ -201,7 +204,7 @@ PROFILES = {
             # Typical average gym session: 30-48 min, moderate effort,
             # nothing extreme. The "I did my thing" workout.
             'name': 'average_session',
-            'count': 450,
+            'count': 675,
             'duration_mins':  (30, 48),
             'avg_hr':         (105, 130),
             'max_hr_delta':   (12, 25),
@@ -215,7 +218,7 @@ PROFILES = {
             # Moderate quick: 22-35 min with moderate pace. Could be
             # High if muscle activation were stronger.
             'name': 'moderate_quick',
-            'count': 400,
+            'count': 600,
             'duration_mins':  (22, 35),
             'avg_hr':         (110, 135),
             'max_hr_delta':   (14, 28),
@@ -229,7 +232,7 @@ PROFILES = {
             # Short but decent: 13-22 min with enough fatigue to tip
             # from Low into Moderate. emg_fatigue is the gating feature.
             'name': 'short_decent',
-            'count': 350,
+            'count': 525,
             'duration_mins':  (13, 22),
             'avg_hr':         (115, 145),
             'max_hr_delta':   (15, 30),
@@ -243,7 +246,7 @@ PROFILES = {
             # Long but easy: 35-55 min at low intensity. Puts in the
             # time but doesn't push. Slightly better than "distracted".
             'name': 'long_easy',
-            'count': 450,
+            'count': 675,
             'duration_mins':  (35, 55),
             'avg_hr':         (90, 115),
             'max_hr_delta':   (10, 22),
@@ -257,7 +260,7 @@ PROFILES = {
             # Beginner cautious: 25-40 min, learning form, light weight,
             # moderate EMG because muscles are engaged but not maxed.
             'name': 'beginner_cautious',
-            'count': 450,
+            'count': 675,
             'duration_mins':  (25, 42),
             'avg_hr':         (95, 125),
             'max_hr_delta':   (12, 25),
@@ -271,7 +274,7 @@ PROFILES = {
             # Single muscle focus: 20-35 min targeting one group (e.g.,
             # only arms). Decent engagement but limited scope.
             'name': 'single_muscle_focus',
-            'count': 450,
+            'count': 675,
             'duration_mins':  (20, 35),
             'avg_hr':         (100, 128),
             'max_hr_delta':   (12, 25),
@@ -284,14 +287,14 @@ PROFILES = {
     ],
 
     # =================================================================
-    #  LABEL 2: HIGH EFFECTIVENESS  (3000 samples, 6 sub-profiles)
+    #  LABEL 2: HIGH EFFECTIVENESS  (4500 samples, 6 sub-profiles)
     # =================================================================
     2: [
         {
             # Solid session: 35-55 min of consistent, quality work.
             # Good bodyweight circuit or well-structured gym session.
             'name': 'solid_session',
-            'count': 550,
+            'count': 825,
             'duration_mins':  (35, 55),
             'avg_hr':         (125, 155),
             'max_hr_delta':   (15, 32),
@@ -305,7 +308,7 @@ PROFILES = {
             # Intense shorter: 28-42 min where every minute is hard.
             # High HR, high EMG, not quite Maximum territory.
             'name': 'intense_shorter',
-            'count': 500,
+            'count': 750,
             'duration_mins':  (28, 42),
             'avg_hr':         (130, 158),
             'max_hr_delta':   (18, 35),
@@ -319,7 +322,7 @@ PROFILES = {
             # Moderate-intensity but long: 45-65 min of sustained
             # moderate work. The effort x time product is still High.
             'name': 'moderate_long',
-            'count': 500,
+            'count': 750,
             'duration_mins':  (45, 65),
             'avg_hr':         (115, 142),
             'max_hr_delta':   (14, 28),
@@ -334,7 +337,7 @@ PROFILES = {
             # in intensity. Moderate early EMG, higher late EMG.
             # Fatigue is significant because you pushed harder at the end.
             'name': 'progressive_overload',
-            'count': 450,
+            'count': 675,
             'duration_mins':  (38, 55),
             'avg_hr':         (120, 150),
             'max_hr_delta':   (15, 32),
@@ -348,7 +351,7 @@ PROFILES = {
             # Superset style: 30-48 min with minimal rest between
             # exercises. HR stays elevated, good EMG throughout.
             'name': 'superset_style',
-            'count': 500,
+            'count': 750,
             'duration_mins':  (30, 48),
             'avg_hr':         (132, 158),
             'max_hr_delta':   (16, 32),
@@ -362,7 +365,7 @@ PROFILES = {
             # Upper/lower split: focused compound lifts for 35-55 min.
             # Good structure, decent volume, solid effort.
             'name': 'compound_split',
-            'count': 500,
+            'count': 750,
             'duration_mins':  (35, 55),
             'avg_hr':         (118, 148),
             'max_hr_delta':   (14, 30),
@@ -375,14 +378,14 @@ PROFILES = {
     ],
 
     # =================================================================
-    #  LABEL 3: MAXIMUM EFFECTIVENESS  (3000 samples, 7 sub-profiles)
+    #  LABEL 3: MAXIMUM EFFECTIVENESS  (4500 samples, 8 sub-profiles)
     # =================================================================
     3: [
         {
             # Beast mode: everything near physiological ceiling.
             # Long session, extreme HR, extreme EMG, extreme volume.
             'name': 'beast_mode',
-            'count': 500,
+            'count': 750,
             'duration_mins':  (42, 72),
             'avg_hr':         (148, 178),
             'max_hr_delta':   (18, 38),
@@ -395,7 +398,7 @@ PROFILES = {
         {
             # One Rep Max testing: taking huge rests, doing a couple of massive singles.
             'name': 'one_rep_max_testing',
-            'count': 400,
+            'count': 600,
             'duration_mins':  (40, 90),
             'avg_hr':         (90, 115),
             'max_hr_delta':   (25, 45),
@@ -409,7 +412,7 @@ PROFILES = {
             # Heavy powerlifting: low HR (3-5 min rests) but extreme
             # muscle engagement. Deadlifts, squats, bench at near-max.
             'name': 'powerlifting',
-            'count': 400,
+            'count': 600,
             'duration_mins':  (35, 62),
             'avg_hr':         (78, 105),
             'max_hr_delta':   (15, 38),
@@ -423,7 +426,7 @@ PROFILES = {
             # High-rep endurance: lighter weight, extreme volume.
             # The sustained muscular effort makes this Maximum.
             'name': 'endurance_volume',
-            'count': 400,
+            'count': 600,
             'duration_mins':  (33, 58),
             'avg_hr':         (130, 165),
             'max_hr_delta':   (15, 30),
@@ -437,7 +440,7 @@ PROFILES = {
             # Intense circuit: supersets and giant sets with minimal
             # rest. Everything elevated throughout.
             'name': 'intense_circuit',
-            'count': 350,
+            'count': 525,
             'duration_mins':  (32, 52),
             'avg_hr':         (140, 172),
             'max_hr_delta':   (18, 35),
@@ -451,7 +454,7 @@ PROFILES = {
             # Drop sets to failure: 35-55 min where multiple sets go
             # to absolute muscular failure. Extreme fatigue signature.
             'name': 'drop_sets_failure',
-            'count': 300,
+            'count': 450,
             'duration_mins':  (35, 55),
             'avg_hr':         (135, 165),
             'max_hr_delta':   (18, 35),
@@ -465,7 +468,7 @@ PROFILES = {
             # Full body destroyer: 45-68 min, high volume across all
             # major muscle groups. Both volume AND intensity are high.
             'name': 'full_body_destroyer',
-            'count': 300,
+            'count': 450,
             'duration_mins':  (45, 68),
             'avg_hr':         (142, 172),
             'max_hr_delta':   (18, 36),
@@ -479,7 +482,7 @@ PROFILES = {
             # Competition-style training: structured, long (55-80 min),
             # high discipline, maximal effort throughout.
             'name': 'competition_training',
-            'count': 350,
+            'count': 525,
             'duration_mins':  (55, 80),
             'avg_hr':         (138, 168),
             'max_hr_delta':   (16, 35),
@@ -491,6 +494,236 @@ PROFILES = {
         },
     ],
 }
+
+
+# =============================================================================
+#  NAMED PROFILE REFERENCES  (for edge-case interpolation)
+# =============================================================================
+#  These are direct references into PROFILES so edge cases always stay in sync
+#  with any future adjustments to the main profile ranges.
+
+_P = {
+    # Label 0
+    'ultra_short_burst':  PROFILES[0][0],
+    'medium_halfhearted': PROFILES[0][3],
+    'distracted_gym':     PROFILES[0][5],
+    # Label 1
+    'light_recovery':     PROFILES[1][0],
+    'average_session':    PROFILES[1][1],
+    'short_decent':       PROFILES[1][3],
+    'long_easy':          PROFILES[1][4],
+    # Label 2
+    'solid_session':      PROFILES[2][0],
+    'intense_shorter':    PROFILES[2][1],
+    # Label 3
+    'beast_mode':         PROFILES[3][0],
+    'powerlifting':       PROFILES[3][2],
+    'endurance_volume':   PROFILES[3][3],
+}
+
+# Interpolation feature keys (must match profile dict keys exactly)
+_FEAT_KEYS = [
+    'duration_mins', 'avg_hr', 'max_hr_delta', 'hr_spikes',
+    'pct_time_low', 'avg_emg', 'emg_fatigue', 'total_reps',
+]
+
+
+def interpolate_profiles(profile_a, profile_b, alpha_per_feature):
+    """
+    Create a pseudo-profile by linearly interpolating between two profiles.
+
+    alpha_per_feature: dict {feature_key: float in [0, 1]}
+        alpha = 1.0  => range fully from profile_a
+        alpha = 0.0  => range fully from profile_b
+        default 0.5  => midpoint between the two
+
+    Returns a dict with the same keys as a normal profile, suitable for
+    passing directly to generate_samples().
+    """
+    pseudo = {}
+    for key in _FEAT_KEYS:
+        alpha = alpha_per_feature.get(key, 0.5)
+        lo = alpha * profile_a[key][0] + (1.0 - alpha) * profile_b[key][0]
+        hi = alpha * profile_a[key][1] + (1.0 - alpha) * profile_b[key][1]
+        pseudo[key] = (lo, hi)
+    return pseudo
+
+
+# =============================================================================
+#  EDGE CASE DEFINITIONS  (8 interpolated profiles)
+# =============================================================================
+#
+#  Each entry: {name, count, label, profile_a, profile_b, alpha_per_feature}
+#
+#  alpha_per_feature controls which features "lean" toward which profile.
+#  HIGH-importance features (avg_emg, emg_fatigue, duration_mins, avg_hr)
+#  are used to steer the predicted label; lower-importance features provide
+#  ambiguity.
+#
+#  Labels confirmed by user (2026-06-01):
+#     EC-01: 0 (Low)      EC-02: 2 (High — user override)
+#     EC-03: 1 (Moderate) EC-04: 2 (High)
+#     EC-05: 2 (High)     EC-06: 1 (Moderate)
+#     EC-07: 1 (Moderate) EC-08: 0 (Low)
+
+EDGE_CASES = [
+    {
+        # EC-01: Distracted gym behaviour with some light-recovery features.
+        # 5 high-importance features lean Low (distracted_gym),
+        # 3 secondary features lean Moderate (light_recovery).
+        # Duration and EMG dominate → Low.
+        'name':    'ec01_distracted_vs_recovery',
+        'count':   300,
+        'label':   0,
+        'profile_a': _P['distracted_gym'],
+        'profile_b': _P['light_recovery'],
+        'alpha': {
+            'avg_emg':      0.75,  # lean distracted (low EMG)
+            'emg_fatigue':  0.75,  # lean distracted (low fatigue)
+            'avg_hr':       0.75,  # lean distracted (low HR)
+            'pct_time_low': 0.75,  # lean distracted (high pct_low)
+            'duration_mins':0.75,  # lean distracted
+            'hr_spikes':    0.25,  # lean light_recovery
+            'total_reps':   0.25,  # lean light_recovery
+            'max_hr_delta': 0.25,  # lean light_recovery
+        },
+    },
+    {
+        # EC-02: Mostly light-recovery features but the 3 most important
+        # features (avg_emg, avg_hr, duration) lean into average_session
+        # territory. User judged this as High (2).
+        'name':    'ec02_recovery_vs_average',
+        'count':   300,
+        'label':   2,
+        'profile_a': _P['light_recovery'],
+        'profile_b': _P['average_session'],
+        'alpha': {
+            'avg_emg':      0.20,  # lean average_session (higher EMG)
+            'avg_hr':       0.20,  # lean average_session (higher HR)
+            'duration_mins':0.20,  # lean average_session (more duration)
+            'emg_fatigue':  0.75,  # lean light_recovery (low fatigue)
+            'pct_time_low': 0.75,  # lean light_recovery (more low-HR time)
+            'hr_spikes':    0.75,  # lean light_recovery
+            'total_reps':   0.75,  # lean light_recovery
+            'max_hr_delta': 0.75,  # lean light_recovery
+        },
+    },
+    {
+        # EC-03: Short decent vs intense shorter — equally split.
+        # Duration is the deciding factor: too short to be High.
+        'name':    'ec03_short_decent_vs_intense',
+        'count':   300,
+        'label':   1,
+        'profile_a': _P['short_decent'],
+        'profile_b': _P['intense_shorter'],
+        'alpha': {
+            'duration_mins':0.70,  # lean short_decent (shorter)
+            'emg_fatigue':  0.70,  # lean short_decent
+            'avg_emg':      0.35,  # lean intense_shorter
+            'avg_hr':       0.35,  # lean intense_shorter
+            'hr_spikes':    0.35,  # lean intense_shorter
+            'pct_time_low': 0.60,  # lean short_decent
+            'total_reps':   0.50,  # midpoint
+            'max_hr_delta': 0.50,  # midpoint
+        },
+    },
+    {
+        # EC-04: Average session vs solid session — evenly split but the
+        # high-importance EMG/fatigue features edge toward High.
+        'name':    'ec04_average_vs_solid',
+        'count':   300,
+        'label':   2,
+        'profile_a': _P['average_session'],
+        'profile_b': _P['solid_session'],
+        'alpha': {
+            'avg_emg':      0.35,  # lean solid_session
+            'emg_fatigue':  0.35,  # lean solid_session
+            'avg_hr':       0.35,  # lean solid_session
+            'duration_mins':0.40,  # slight lean toward solid_session
+            'hr_spikes':    0.40,  # slight lean toward solid_session
+            'pct_time_low': 0.60,  # lean average_session
+            'total_reps':   0.40,  # lean solid_session
+            'max_hr_delta': 0.50,  # midpoint
+        },
+    },
+    {
+        # EC-05: Solid session vs beast mode — duration and volume from beast,
+        # but intensity features stay High. Not quite Maximum.
+        'name':    'ec05_solid_vs_beast',
+        'count':   300,
+        'label':   2,
+        'profile_a': _P['solid_session'],
+        'profile_b': _P['beast_mode'],
+        'alpha': {
+            'avg_emg':      0.65,  # lean solid_session
+            'emg_fatigue':  0.60,  # lean solid_session
+            'avg_hr':       0.65,  # lean solid_session
+            'pct_time_low': 0.65,  # lean solid_session (not quite beast)
+            'duration_mins':0.30,  # lean beast_mode (longer duration)
+            'total_reps':   0.30,  # lean beast_mode (more reps)
+            'hr_spikes':    0.50,  # midpoint
+            'max_hr_delta': 0.50,  # midpoint
+        },
+    },
+    {
+        # EC-06: Powerlifting EMG meets halfhearted HR/reps.
+        # Extreme avg_emg but everything else is weak → Moderate.
+        'name':    'ec06_powerlifting_vs_halfhearted',
+        'count':   300,
+        'label':   1,
+        'profile_a': _P['powerlifting'],
+        'profile_b': _P['medium_halfhearted'],
+        'alpha': {
+            'avg_emg':      0.70,  # lean powerlifting (high EMG)
+            'emg_fatigue':  0.70,  # lean powerlifting
+            'avg_hr':       0.25,  # lean halfhearted (low HR)
+            'pct_time_low': 0.25,  # lean halfhearted (lots of low-HR time)
+            'total_reps':   0.25,  # lean halfhearted (low reps)
+            'duration_mins':0.50,  # midpoint
+            'hr_spikes':    0.25,  # lean halfhearted
+            'max_hr_delta': 0.50,  # midpoint
+        },
+    },
+    {
+        # EC-07: Endurance volume reps but with long-easy EMG/HR.
+        # High reps alone don't make Maximum; EMG is weak → Moderate.
+        'name':    'ec07_endurance_vs_longeasy',
+        'count':   300,
+        'label':   1,
+        'profile_a': _P['endurance_volume'],
+        'profile_b': _P['long_easy'],
+        'alpha': {
+            'total_reps':   0.75,  # lean endurance_volume (huge reps)
+            'duration_mins':0.60,  # lean endurance_volume
+            'avg_emg':      0.25,  # lean long_easy (weak EMG)
+            'emg_fatigue':  0.25,  # lean long_easy
+            'avg_hr':       0.35,  # lean long_easy (lower HR)
+            'pct_time_low': 0.35,  # lean long_easy
+            'hr_spikes':    0.50,  # midpoint
+            'max_hr_delta': 0.50,  # midpoint
+        },
+    },
+    {
+        # EC-08: Ultra-short burst vs short decent — mostly Low duration.
+        # Duration is the decisive gating feature: sub-10 min → Low.
+        'name':    'ec08_ultra_short_vs_decent',
+        'count':   300,
+        'label':   0,
+        'profile_a': _P['ultra_short_burst'],
+        'profile_b': _P['short_decent'],
+        'alpha': {
+            'duration_mins':0.65,  # lean ultra_short (short duration)
+            'avg_hr':       0.35,  # lean short_decent (decent HR)
+            'avg_emg':      0.35,  # lean short_decent (decent EMG)
+            'emg_fatigue':  0.35,  # lean short_decent
+            'hr_spikes':    0.50,  # midpoint
+            'total_reps':   0.35,  # lean short_decent (more reps)
+            'pct_time_low': 0.65,  # lean ultra_short
+            'max_hr_delta': 0.50,  # midpoint
+        },
+    },
+]
+
 
 
 # =============================================================================
@@ -559,6 +792,7 @@ def generate_samples(n, profile, label):
     for _ in range(n):
         # 1. Generate Demographics
         age = np.random.randint(16, 66)
+        weight_kg = round(np.random.uniform(50.0, 130.0), 1)
         fitness_level = np.random.choice(['low', 'medium', 'high'], p=[0.3, 0.5, 0.2])
         athlete_type = np.random.choice(['powerlifter', 'hybrid', 'gym_bro', 'non_athletic'], p=[0.1, 0.2, 0.5, 0.2])
         body_fat_pct = round(np.random.uniform(5.0, 35.0), 1)
@@ -616,10 +850,19 @@ def generate_samples(n, profile, label):
         if athlete_type == 'powerlifter':
             hr_spikes = max(0, hr_spikes - 2) # Taking longer rests = fewer spikes
 
+        # Weight modifier — heavier body mass raises cardiovascular load
+        # and produces higher absolute EMG (more muscle mass to activate).
+        # Reference: 80 kg is a neutral baseline.
+        weight_hr_factor  = 1.0 + (weight_kg - 80.0) / 500.0   # ±10% over 50 kg range
+        weight_emg_factor = 1.0 + (weight_kg - 80.0) / 400.0   # ±12.5% over 50 kg range
+        avg_hr  *= weight_hr_factor
+        avg_emg *= weight_emg_factor
+
         # 4. Construct Sample
         sample = {
             'workout_id':          f"w_{uuid.uuid4().hex[:8]}",
             'age':                 age,
+            'weight_kg':           weight_kg,
             'fitness_level':       fitness_level,
             'workout_type':        workout_type,
             'athlete_type':        athlete_type,
@@ -680,7 +923,19 @@ def generate_dataset():
             label_count += profile['count']
             print(f"  |   {profile['name']:28s} ->  {profile['count']:4d} samples")
 
-        print(f"  +-- Subtotal: {label_count} samples\n")
+        print(f'  +-- Subtotal: {label_count} samples\n')
+
+    # ── Edge Cases ────────────────────────────────────────────────────────
+    print('  +-- EDGE CASES (interpolated profiles) ------------------')
+    ec_total = 0
+    for ec in EDGE_CASES:
+        pseudo = interpolate_profiles(ec['profile_a'], ec['profile_b'], ec['alpha'])
+        ec_samples = generate_samples(ec['count'], pseudo, ec['label'])
+        all_samples.extend(ec_samples)
+        ec_total += ec['count']
+        print(f"  |   {ec['name']:28s} ->  {ec['count']:4d} samples  (label={ec['label']})")
+    print(f'  +-- Edge case subtotal: {ec_total} samples\n')
+
 
     # Shuffle the entire dataset
     np.random.shuffle(all_samples)
@@ -688,7 +943,7 @@ def generate_dataset():
     # Build DataFrame with correct column order
     df = pd.DataFrame(all_samples)
     col_order = [
-        'workout_id', 'age', 'fitness_level', 'workout_type', 'athlete_type', 'body_fat_pct', 'limb_length',
+        'workout_id', 'age', 'weight_kg', 'fitness_level', 'workout_type', 'athlete_type', 'body_fat_pct', 'limb_length',
         'duration_mins', 'avg_hr', 'max_hr', 'hr_spikes',
         'pct_time_low', 'avg_emg', 'emg_fatigue', 'total_reps',
         'effectiveness_label'
@@ -696,6 +951,7 @@ def generate_dataset():
     df = df[col_order]
 
     return df
+
 
 
 # =============================================================================
@@ -729,7 +985,8 @@ if __name__ == "__main__":
     print("=" * 62)
     print("   FEATURE STATISTICS (excluding workout_id)")
     print("=" * 62)
-    numeric_cols = [c for c in df.columns if c not in ('workout_id', 'effectiveness_label')]
+    CATEGORICAL = {'workout_id', 'fitness_level', 'workout_type', 'athlete_type', 'limb_length', 'effectiveness_label'}
+    numeric_cols = [c for c in df.columns if c not in CATEGORICAL]
     print(df[numeric_cols].describe().round(2).to_string())
 
     # ── Quick per-class means ────────────────────────────────────────────
@@ -738,6 +995,7 @@ if __name__ == "__main__":
     print("   PER-CLASS FEATURE MEANS")
     print("=" * 62)
     means = df.groupby('effectiveness_label')[numeric_cols].mean().round(1)
+
     means.index = [f"{i} ({label_names[i]})" for i in means.index]
     print(means.to_string())
     print()

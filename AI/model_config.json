@@ -1,6 +1,7 @@
 {
   "feature_columns": [
     "age",
+    "weight_kg",
     "fitness_level",
     "workout_type",
     "athlete_type",
@@ -23,22 +24,26 @@
     "3": "Maximum"
   },
   "best_params": {
-    "colsample_bytree": 0.5858380416719808,
-    "gamma": 0.012320255030362737,
-    "learning_rate": 0.13768164339009453,
+    "colsample_bytree": 0.6942601816442403,
+    "gamma": 0.07261658145345012,
+    "learning_rate": 0.21147659779958722,
     "max_depth": 6,
-    "min_child_weight": 4,
-    "n_estimators": 157,
-    "reg_alpha": 0.03922819067113298,
-    "reg_lambda": 0.5380261151231862,
-    "subsample": 0.9887945244033775
+    "min_child_weight": 3,
+    "n_estimators": 500,
+    "reg_alpha": 0.3641081743059298,
+    "reg_lambda": 1.05167469907888,
+    "subsample": 0.8896917491780738
   },
-  "test_accuracy": 0.9925,
-  "test_f1_macro": 0.9925020834659931,
+  "test_accuracy": 0.9611726639866653,
+  "test_f1_macro": 0.9616116972458343,
   "feature_descriptions": {
     "age": {
       "positive": "age ({} yrs)",
       "negative": "age ({} yrs)"
+    },
+    "weight_kg": {
+      "positive": "high body weight ({:.1f} kg)",
+      "negative": "low body weight ({:.1f} kg)"
     },
     "fitness_level": {
       "positive": "fitness level ({})",
