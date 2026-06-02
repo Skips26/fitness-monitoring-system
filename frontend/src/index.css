@@ -1022,3 +1022,347 @@ h4 { font-size: 1.25rem; }
   border: 1px solid rgba(99, 102, 241, 0.25);
   color: #a5b4fc;
 }
+
+/* ── Step Progress Indicator ─────────────────────────────────────────────── */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: var(--space-md);
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.4;
+  transition: all var(--transition-base);
+}
+
+.step-item.active {
+  opacity: 1;
+}
+
+.step-item.done .step-number {
+  background: var(--accent-success);
+  border-color: var(--accent-success);
+}
+
+.step-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 2px solid var(--border-subtle);
+  background: var(--bg-secondary);
+  transition: all var(--transition-base);
+}
+
+.step-item.active .step-number {
+  border-color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--accent-primary);
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.25);
+}
+
+.step-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.step-item.active .step-text {
+  color: var(--text-primary);
+}
+
+.step-connector {
+  width: 60px;
+  height: 2px;
+  background: var(--border-subtle);
+  margin: 0 var(--space-sm);
+  margin-bottom: 24px;
+}
+
+/* ── Editable Stat Cards ─────────────────────────────────────────────────── */
+.editable-stat {
+  position: relative;
+  cursor: default;
+  overflow: visible;
+}
+
+.editable-stat .stat-value.clickable {
+  cursor: pointer;
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  transition: color var(--transition-fast);
+}
+
+.editable-stat .stat-value.clickable:hover {
+  color: var(--accent-primary);
+}
+
+.edit-icon {
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  color: var(--accent-primary);
+  margin-left: 4px;
+}
+
+.editable-stat:hover .edit-icon {
+  opacity: 0.7;
+}
+
+.stat-unit {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+/* ── Anomaly State ───────────────────────────────────────────────────────── */
+.editable-stat.anomaly {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.05);
+  animation: anomalyPulse 3s ease-in-out infinite;
+}
+
+@keyframes anomalyPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+  50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.1); }
+}
+
+.anomaly-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 1rem;
+  line-height: 1;
+  animation: anomalyBounce 2s ease-in-out infinite;
+}
+
+@keyframes anomalyBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* ── Modified State ──────────────────────────────────────────────────────── */
+.editable-stat.modified {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.modified-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--accent-success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* ── Editing State ───────────────────────────────────────────────────────── */
+.editable-stat.editing {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.stat-edit-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.stat-edit-input {
+  width: 100%;
+  max-width: 120px;
+  padding: 6px 10px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+}
+
+.stat-edit-input:focus {
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.stat-edit-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.stat-edit-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: all var(--transition-fast);
+}
+
+.stat-edit-btn.save {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--accent-success);
+}
+
+.stat-edit-btn.save:hover {
+  background: rgba(16, 185, 129, 0.35);
+  transform: scale(1.1);
+}
+
+.stat-edit-btn.cancel {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-danger);
+}
+
+.stat-edit-btn.cancel:hover {
+  background: rgba(239, 68, 68, 0.3);
+  transform: scale(1.1);
+}
+
+.stat-edit-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ── Default Values Dropdown ─────────────────────────────────────────────── */
+.defaults-section {
+  margin-top: 6px;
+  width: 100%;
+}
+
+.btn-defaults-toggle {
+  background: none;
+  border: none;
+  font-size: 0.7rem;
+  color: var(--accent-warning);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.btn-defaults-toggle:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.btn-defaults-toggle.subtle {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+.btn-defaults-toggle.subtle:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.defaults-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding: 4px;
+  background: rgba(20, 27, 45, 0.95);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: var(--radius-sm);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.default-option {
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.default-option:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--text-primary);
+}
+
+.default-option:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Anomaly Summary Banner ──────────────────────────────────────────────── */
+.anomaly-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-sm);
+  color: var(--accent-warning);
+  font-size: 0.85rem;
+}
+
+.anomaly-summary svg {
+  flex-shrink: 0;
+}
+
+/* ── Responsive adjustments ──────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .step-indicator {
+    gap: 0;
+    padding: var(--space-md);
+  }
+
+  .step-connector {
+    width: 30px;
+  }
+
+  .step-text {
+    font-size: 0.65rem;
+  }
+
+  .step-number {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8rem;
+  }
+}

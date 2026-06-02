@@ -30,6 +30,7 @@ import json
 import math
 import threading
 import statistics
+import os
 
 # ── Raspberry Pi hardware libraries ──────────────────────────────────────────
 import board
@@ -38,12 +39,26 @@ from adafruit_ads1x15.ads1115 import ADS1115
 from adafruit_ads1x15.analog_in import AnalogIn
 from adafruit_ads1x15.ads1x15 import Pin
 
-# ── For sending data to AWS (prepared, not active yet) ───────────────────────
+# ── For sending data to AWS ──────────────────────────────────────────────────
 import requests  # pip install requests
 
 # =============================================================================
 #  CONFIGURATION
 # =============================================================================
+
+# Load config from config.json (same directory as this script)
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_CONFIG_PATH = os.path.join(_SCRIPT_DIR, "config.json")
+
+try:
+    with open(_CONFIG_PATH, "r") as _f:
+        _config = json.load(_f)
+    AWS_API_ENDPOINT = _config.get("aws_api_url", "")
+    BACKEND_URL = _config.get("backend_url", "http://localhost:8000")
+except FileNotFoundError:
+    print(f"[WARN] Config file not found at {_CONFIG_PATH}. Using defaults.")
+    AWS_API_ENDPOINT = ""
+    BACKEND_URL = "http://localhost:8000"
 
 # ADS1115
 ADS_DATA_RATE    = 250          # samples per second (860 max, but 250 is stable on shared I2C)
@@ -77,9 +92,6 @@ HR_SPIKE_DELTA       = 70       # BPM jump between consecutive readings
 # Sampling interval (seconds) — shared across sensor threads
 SAMPLE_INTERVAL      = 0.025    # 40 Hz — reduces I2C bus congestion with 3 threads
 
-# AWS endpoint (placeholder — fill in with your actual API Gateway / IoT endpoint)
-AWS_API_ENDPOINT = "https://YOUR_API_GATEWAY_URL.amazonaws.com/prod/workout"
-
 # =============================================================================
 #  GLOBAL STATE
 # =============================================================================
@@ -93,11 +105,75 @@ rep_timestamps   = []           # list of timestamps when a rep was detected
 workout_start    = 0.0
 workout_end      = 0.0
 
+# Selected user (set at startup)
+selected_user    = None         # dict with id, first_name, last_name
+
 # Thread-safe lock for shared lists
 data_lock = threading.Lock()
 
 # Thread-safe lock for I2C bus access (ADS1115 + MPU6050 share the bus)
 i2c_lock = threading.Lock()
+
+
+# =============================================================================
+#  USER SELECTION  —  Fetch users from backend and prompt for selection
+# =============================================================================
+
+def fetch_users():
+    """Fetch the list of registered users from the backend API."""
+    url = f"{BACKEND_URL}/profiles/list"
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"[USER]  ⚠️ Backend returned HTTP {response.status_code}")
+            return []
+    except requests.exceptions.ConnectionError:
+        print(f"[USER]  ❌ Could not reach backend at {url}")
+        return []
+    except Exception as e:
+        print(f"[USER]  ❌ Error fetching users: {e}")
+        return []
+
+
+def select_user():
+    """Display a menu of registered users and let the operator pick one."""
+    global selected_user
+
+    print("\n" + "=" * 60)
+    print("  👤  USER SELECTION")
+    print("=" * 60)
+    print("\n  Fetching registered users from the server …")
+
+    users = fetch_users()
+
+    if not users:
+        print("\n  ❌  No users found or could not connect to the server.")
+        print("      Make sure the backend is running and users are registered.")
+        print("      Backend URL: " + BACKEND_URL)
+        return False
+
+    print(f"\n  Found {len(users)} registered user(s):\n")
+    for i, user in enumerate(users, 1):
+        name = f"{user.get('first_name', '?')} {user.get('last_name', '?')}"
+        print(f"    [{i}]  {name}")
+
+    print()
+    while True:
+        choice = input("  👉  Enter the number of your user: ").strip()
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(users):
+                selected_user = users[idx]
+                name = f"{selected_user.get('first_name', '?')} {selected_user.get('last_name', '?')}"
+                print(f"\n  ✅  Selected user: {name}")
+                print(f"      User ID: {selected_user['id']}")
+                return True
+            else:
+                print(f"  ⚠️  Please enter a number between 1 and {len(users)}.")
+        except ValueError:
+            print("  ⚠️  Please enter a valid number.")
 
 
 # =============================================================================
@@ -388,33 +464,63 @@ def compute_features():
 
 def send_to_aws(features: dict):
     """
-    POST the workout features to AWS API Gateway / IoT endpoint.
+    POST the workout features to AWS API Gateway.
+    The Lambda function will forward the data to the FastAPI backend.
     Falls back gracefully if the network is unreachable.
     """
+    if not AWS_API_ENDPOINT or "YOUR_API_GATEWAY" in AWS_API_ENDPOINT:
+        print("\n[AWS]  ⚠️ AWS API endpoint not configured in config.json.")
+        print("       Skipping AWS upload. Data saved locally only.")
+        return False
+
+    # Include the selected user's ID in the payload
+    payload = {
+        "user_id": selected_user["id"],
+        **{k: v for k, v in features.items() if k != "workout_id"},
+    }
+
     print("\n[AWS]  Sending data to cloud …")
     try:
         response = requests.post(
             AWS_API_ENDPOINT,
-            json=features,
+            json=payload,
             headers={"Content-Type": "application/json"},
-            timeout=10,
+            timeout=15,
         )
         if response.status_code in (200, 201):
             print(f"[AWS]  ✅ Data sent successfully (HTTP {response.status_code})")
+            try:
+                resp_data = response.json()
+                if "workout" in resp_data:
+                    workout_id = resp_data["workout"].get("id", "unknown")
+                    print(f"[AWS]  📋 Workout ID in database: {workout_id}")
+            except Exception:
+                pass
+            return True
         else:
             print(f"[AWS]  ⚠️ Server responded with HTTP {response.status_code}")
             print(f"       {response.text[:200]}")
+            return False
     except requests.exceptions.ConnectionError:
         print("[AWS]  ❌ Could not reach the server. Data saved locally only.")
+        return False
     except Exception as e:
         print(f"[AWS]  ❌ Error: {e}")
+        return False
 
 
 def save_locally(features: dict, filename="workout_log.json"):
     """Append the workout features to a local JSON-lines file as backup."""
-    with open(filename, "a") as f:
-        f.write(json.dumps(features) + "\n")
-    print(f"[LOG]  💾 Saved to {filename}")
+    filepath = os.path.join(_SCRIPT_DIR, filename)
+    with open(filepath, "a") as f:
+        entry = {
+            "user_id": selected_user["id"] if selected_user else "unknown",
+            "user_name": f"{selected_user.get('first_name', '?')} {selected_user.get('last_name', '?')}" if selected_user else "unknown",
+            **features,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        f.write(json.dumps(entry) + "\n")
+    print(f"[LOG]  💾 Saved to {filepath}")
 
 
 # =============================================================================
@@ -425,8 +531,17 @@ def main():
     global workout_running, workout_start, workout_end
     global ecg_bpm_log, emg_signal_log, rep_timestamps
 
-    # ── Initialize hardware ──────────────────────────────────────────────
+    # ── User selection ───────────────────────────────────────────────────
     print("=" * 60)
+    print("  🏋️  WORKOUT TRACKER  —  Starting up …")
+    print("=" * 60)
+
+    if not select_user():
+        print("\n  ❌  Cannot proceed without selecting a user. Exiting.")
+        return
+
+    # ── Initialize hardware ──────────────────────────────────────────────
+    print("\n" + "=" * 60)
     print("  🏋️  WORKOUT TRACKER  —  Initializing hardware …")
     print("=" * 60)
 
@@ -439,16 +554,24 @@ def main():
     print("[HW]   MPU6050 ✅  (Accelerometer + Gyro)")
     print("=" * 60)
 
+    user_name = f"{selected_user.get('first_name', '?')} {selected_user.get('last_name', '?')}"
+
     # ── Workout loop ─────────────────────────────────────────────────────
     while True:
-        print("\n📋  OPTIONS:")
+        print(f"\n📋  OPTIONS  (User: {user_name}):")
         print("    [1]  START WORKOUT")
-        print("    [2]  QUIT")
+        print("    [2]  SWITCH USER")
+        print("    [3]  QUIT")
         choice = input("\n👉  Enter choice: ").strip()
 
-        if choice == "2":
+        if choice == "3":
             print("\n👋  Goodbye!")
             break
+
+        if choice == "2":
+            if select_user():
+                user_name = f"{selected_user.get('first_name', '?')} {selected_user.get('last_name', '?')}"
+            continue
 
         if choice != "1":
             print("⚠️  Invalid choice, try again.")
@@ -476,7 +599,7 @@ def main():
         t_mpu.start()
 
         print("\n" + "=" * 60)
-        print("  🟢  WORKOUT IN PROGRESS")
+        print(f"  🟢  WORKOUT IN PROGRESS  (User: {user_name})")
         print("  Press ENTER at any time to STOP the workout.")
         print("=" * 60 + "\n")
 
@@ -495,7 +618,7 @@ def main():
         features = compute_features()
 
         print("\n" + "=" * 60)
-        print("  🏁  WORKOUT COMPLETE  —  Feature Summary")
+        print(f"  🏁  WORKOUT COMPLETE  —  Feature Summary  (User: {user_name})")
         print("=" * 60)
         header = ",".join(features.keys())
         values = ",".join(str(v) for v in features.values())
@@ -515,7 +638,13 @@ def main():
 
         # ── Save locally + send to AWS ───────────────────────────────────
         save_locally(features)
-        send_to_aws(features)
+        aws_success = send_to_aws(features)
+
+        if aws_success:
+            print("\n✅  Workout data sent to the cloud!")
+            print("    Open the website to review, edit, and analyze this workout.")
+        else:
+            print("\n⚠️  Workout saved locally only. Check your AWS/network config.")
 
         print("\n✅  Ready for next workout.\n")
 

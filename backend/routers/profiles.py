@@ -4,7 +4,7 @@ Profile routes — manage user demographic data.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from auth import get_current_user
 from database import get_supabase_admin
 
@@ -49,7 +49,25 @@ class ProfileResponse(BaseModel):
     updated_at: Optional[str] = None
 
 
+class ProfileListItem(BaseModel):
+    """Lightweight profile info for the Raspberry Pi user selection menu."""
+    id: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+
 # ── Routes ───────────────────────────────────────────────────────────────────
+
+@router.get("/list", response_model=List[ProfileListItem])
+async def list_profiles():
+    """
+    Public endpoint (no auth required).
+    Returns all user IDs and names for the Raspberry Pi's user selection menu.
+    """
+    db = get_supabase_admin()
+    result = db.table("profiles").select("id, first_name, last_name").execute()
+    return result.data
+
 
 @router.get("/me", response_model=ProfileResponse)
 async def get_my_profile(user: dict = Depends(get_current_user)):

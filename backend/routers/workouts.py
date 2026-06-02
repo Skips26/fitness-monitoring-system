@@ -37,6 +37,22 @@ class WorkoutRepsUpdate(BaseModel):
     total_reps: int = Field(ge=0)
 
 
+class WorkoutDataUpdate(BaseModel):
+    """
+    User edits any sensor data fields before triggering AI analysis.
+    All fields are optional — only non-None fields get updated.
+    Used to correct bad sensor readings or apply default values.
+    """
+    duration_mins: Optional[float] = Field(None, ge=0.1)
+    avg_hr: Optional[float] = Field(None, ge=0)
+    max_hr: Optional[float] = Field(None, ge=0)
+    hr_spikes: Optional[int] = Field(None, ge=0)
+    pct_time_low: Optional[float] = Field(None, ge=0, le=100)
+    avg_emg: Optional[float] = Field(None, ge=0, le=1000)
+    emg_fatigue: Optional[float] = Field(None, ge=0, le=60)
+    total_reps: Optional[int] = Field(None, ge=0)
+
+
 class WorkoutResponse(BaseModel):
     id: str
     user_id: str
@@ -171,6 +187,60 @@ async def update_workout_reps(
     result = (
         db.table("workouts")
         .update({"total_reps": body.total_reps})
+        .eq("id", workout_id)
+        .eq("user_id", user["id"])
+        .execute()
+    )
+
+    if not result.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workout not found.",
+        )
+
+    return result.data[0]
+
+
+@router.put("/{workout_id}/data", response_model=WorkoutResponse)
+async def update_workout_data(
+    workout_id: str,
+    body: WorkoutDataUpdate,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Edit any sensor data fields before triggering AI analysis.
+    Only non-None fields in the request body are updated.
+    Use this to correct bad sensor readings or apply default values.
+    """
+    db = get_supabase_admin()
+
+    # Only include fields that were explicitly provided (non-None)
+    update_data = {k: v for k, v in body.model_dump().items() if v is not None}
+
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields to update. Provide at least one sensor field.",
+        )
+
+    # Verify the workout exists and belongs to this user
+    existing = (
+        db.table("workouts")
+        .select("id, status")
+        .eq("id", workout_id)
+        .eq("user_id", user["id"])
+        .execute()
+    )
+
+    if not existing.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workout not found.",
+        )
+
+    result = (
+        db.table("workouts")
+        .update(update_data)
         .eq("id", workout_id)
         .eq("user_id", user["id"])
         .execute()

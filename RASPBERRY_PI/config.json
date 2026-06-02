@@ -1,0 +1,5 @@
+{
+    "aws_api_url": "https://z4mogo62zl.execute-api.eu-north-1.amazonaws.com/prod/workout",
+    "backend_url": "https://thick-apes-punch.loca.lt",
+    "comment": "Replace the URLs above with your actual AWS API Gateway URL and backend URL"
+}

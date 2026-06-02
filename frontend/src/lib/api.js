@@ -54,6 +54,11 @@ export const workoutsApi = {
       method: 'PUT',
       body: JSON.stringify({ total_reps: totalReps }),
     }),
+  updateData: (id, data) =>
+    apiFetch(`/workouts/${id}/data`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   analyze: (id) =>
     apiFetch(`/workouts/${id}/analyze`, { method: 'POST' }),
 };

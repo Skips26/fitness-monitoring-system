@@ -1,2 +1,0 @@
-python -m uvicorn main:app --reload
-cmd /c npm run dev
