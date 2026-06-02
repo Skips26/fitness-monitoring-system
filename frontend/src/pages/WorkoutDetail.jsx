@@ -26,6 +26,9 @@ export default function WorkoutDetail() {
   const [analyzing, setAnalyzing] = useState(false);
   const [selectedType, setSelectedType] = useState('');
   const [error, setError] = useState('');
+  const [showRepsModal, setShowRepsModal] = useState(false);
+  const [repsInput, setRepsInput] = useState('');
+  const [savingReps, setSavingReps] = useState(false);
 
   useEffect(() => {
     loadWorkout();
@@ -37,6 +40,10 @@ export default function WorkoutDetail() {
       setWorkout(data);
       if (data.workout_type) {
         setSelectedType(data.workout_type);
+      }
+      // Auto-show reps modal if workout is pending and reps weren't sensor-counted
+      if (data.status === 'pending' && data.total_reps === 0) {
+        setShowRepsModal(true);
       }
     } catch (err) {
       setError(err.message);
@@ -68,6 +75,25 @@ export default function WorkoutDetail() {
     }
   };
 
+  const handleSaveReps = async () => {
+    const reps = parseInt(repsInput, 10);
+    if (isNaN(reps) || reps < 0) return;
+    setSavingReps(true);
+    try {
+      const updated = await workoutsApi.updateReps(id, reps);
+      setWorkout(updated);
+      setShowRepsModal(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingReps(false);
+    }
+  };
+
+  const handleSkipReps = () => {
+    setShowRepsModal(false);
+  };
+
   if (loading) {
     return (
       <div className="page-container">
@@ -90,6 +116,81 @@ export default function WorkoutDetail() {
 
   return (
     <div className="page-container">
+
+      {/* ── Reps Modal ─────────────────────────────────────────────────── */}
+      {showRepsModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.65)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem',
+        }}>
+          <div style={{
+            background: 'rgba(20, 27, 45, 0.95)',
+            border: '1px solid rgba(99,102,241,0.35)',
+            borderRadius: '1.25rem',
+            padding: '2rem',
+            width: '100%',
+            maxWidth: '420px',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '0.75rem' }}>🔄</div>
+            <h2 style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: '1.3rem' }}>
+              How many reps did you do?
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+              The sensor couldn't count reps automatically.<br />
+              Enter your total rep count for this session.
+            </p>
+
+            <input
+              id="reps-input"
+              type="number"
+              min="0"
+              placeholder="e.g. 48"
+              value={repsInput}
+              onChange={(e) => setRepsInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveReps()}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                fontSize: '1.25rem',
+                textAlign: 'center',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(99,102,241,0.4)',
+                borderRadius: '0.75rem',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                marginBottom: '1.25rem',
+                boxSizing: 'border-box',
+              }}
+              autoFocus
+            />
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+                onClick={handleSkipReps}
+                disabled={savingReps}
+              >
+                Skip
+              </button>
+              <button
+                id="save-reps-btn"
+                className="btn btn-primary"
+                style={{ flex: 2 }}
+                onClick={handleSaveReps}
+                disabled={savingReps || repsInput === ''}
+              >
+                {savingReps ? 'Saving…' : 'Save Reps'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Back button */}
       <button
         className="btn btn-ghost mb-lg animate-in"

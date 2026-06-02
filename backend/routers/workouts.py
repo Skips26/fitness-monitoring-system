@@ -32,6 +32,11 @@ class WorkoutTypeUpdate(BaseModel):
     workout_type: Literal["HILV", "LIHV", "hypertrophy", "endurance_lifting"]
 
 
+class WorkoutRepsUpdate(BaseModel):
+    """User manually enters the rep count for a workout."""
+    total_reps: int = Field(ge=0)
+
+
 class WorkoutResponse(BaseModel):
     id: str
     user_id: str
@@ -140,6 +145,32 @@ async def set_workout_type(
     result = (
         db.table("workouts")
         .update({"workout_type": body.workout_type})
+        .eq("id", workout_id)
+        .eq("user_id", user["id"])
+        .execute()
+    )
+
+    if not result.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workout not found.",
+        )
+
+    return result.data[0]
+
+
+@router.put("/{workout_id}/reps", response_model=WorkoutResponse)
+async def update_workout_reps(
+    workout_id: str,
+    body: WorkoutRepsUpdate,
+    user: dict = Depends(get_current_user),
+):
+    """Manually set the rep count for a workout (used when MPU sensor is not active)."""
+    db = get_supabase_admin()
+
+    result = (
+        db.table("workouts")
+        .update({"total_reps": body.total_reps})
         .eq("id", workout_id)
         .eq("user_id", user["id"])
         .execute()
