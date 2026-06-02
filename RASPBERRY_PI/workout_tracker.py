@@ -46,7 +46,7 @@ import requests  # pip install requests
 # =============================================================================
 
 # ADS1115
-ADS_DATA_RATE    = 860          # samples per second (max for ADS1115)
+ADS_DATA_RATE    = 250          # samples per second (860 max, but 250 is stable on shared I2C)
 ECG_CHANNEL      = Pin.A0       # AD8232 output
 EMG_CHANNEL      = Pin.A1       # EMG sensor output
 
@@ -72,10 +72,10 @@ REP_COOLDOWN         = 0.8      # seconds between valid reps
 LOW_HR_ZONE          = 100      # BPM below this is "low"
 
 # HR spike definition
-HR_SPIKE_DELTA       = 20       # BPM jump between consecutive readings
+HR_SPIKE_DELTA       = 70       # BPM jump between consecutive readings
 
 # Sampling interval (seconds) — shared across sensor threads
-SAMPLE_INTERVAL      = 0.01     # 100 Hz
+SAMPLE_INTERVAL      = 0.025    # 40 Hz — reduces I2C bus congestion with 3 threads
 
 # AWS endpoint (placeholder — fill in with your actual API Gateway / IoT endpoint)
 AWS_API_ENDPOINT = "https://YOUR_API_GATEWAY_URL.amazonaws.com/prod/workout"
