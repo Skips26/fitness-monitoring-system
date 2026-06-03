@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { workoutsApi } from '../lib/api';
 import EffectivenessGauge from '../components/EffectivenessGauge';
@@ -139,6 +139,13 @@ export default function WorkoutDetail() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  useEffect(() => {
+    if (successMsg) {
+      const timer = setTimeout(() => setSuccessMsg(''), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg]);
+
   // Editable sensor data state
   const [editingField, setEditingField] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -196,7 +203,6 @@ export default function WorkoutDetail() {
     setEditingField(fieldKey);
     setEditValue(String(workout[fieldKey]));
     setShowDefaultsFor(null);
-    setSuccessMsg('');
   };
 
   const cancelEditing = () => {
@@ -218,7 +224,6 @@ export default function WorkoutDetail() {
       setEditValue('');
       setShowDefaultsFor(null);
       setSuccessMsg(`${SENSOR_FIELDS.find(f => f.key === fieldKey)?.label || fieldKey} updated`);
-      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -272,7 +277,7 @@ export default function WorkoutDetail() {
       </button>
 
       {error && <div className="alert alert-error">{error}</div>}
-      {successMsg && <div className="alert alert-success">{successMsg}</div>}
+      {successMsg && <div className="alert alert-success toast-alert">{successMsg}</div>}
 
       {/* Header */}
       <div className="page-header animate-in">
