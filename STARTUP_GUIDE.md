@@ -64,3 +64,13 @@ curl -X POST https://z4mogo62zl.execute-api.eu-north-1.amazonaws.com/prod/workou
 ```bash
 python RASPBERRY_PI/workout_tracker.py
 ```
+npx plugins add vercel/vercel-plugin
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+DEPLOY LINK:
+https://fitness-monitoring-system.onrender.com backend
+
+fitness-monitoring-system.vercel.app frontend
+
+

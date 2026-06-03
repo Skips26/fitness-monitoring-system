@@ -1663,22 +1663,41 @@ h4 {
 }
 
 /* ── Responsive adjustments ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .page-container {
+    padding-top: calc(56px + var(--space-xl));
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+  }
+
+  .navbar {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .navbar-links {
+    gap: var(--space-sm);
+  }
+
+  .navbar-links a, .navbar-links button {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.75rem;
+  }
+}
+
 @media (max-width: 600px) {
-  h1 {
-    font-size: 1.75rem;
-  }
-
-  h2 {
-    font-size: 1.4rem;
-  }
-
-  h3 {
-    font-size: 1.15rem;
-  }
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.4rem; }
+  h3 { font-size: 1.15rem; }
 
   .page-container {
+    padding-top: calc(56px + var(--space-lg));
     padding-left: var(--space-md);
     padding-right: var(--space-md);
+    padding-bottom: var(--space-xl);
+  }
+
+  .card {
+    padding: var(--space-md);
   }
 
   .step-indicator {
@@ -1701,7 +1720,7 @@ h4 {
   }
 
   .workout-card {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
     gap: var(--space-md);
   }
 
@@ -1711,6 +1730,27 @@ h4 {
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .toast-alert {
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    justify-content: center;
+  }
+
+  .navbar-brand {
+    font-size: 1.1rem;
+  }
+  
+  .navbar-brand svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .navbar-links a, .navbar-links button {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
   }
 }
 
