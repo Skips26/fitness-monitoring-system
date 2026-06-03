@@ -62,3 +62,13 @@ export const workoutsApi = {
   analyze: (id) =>
     apiFetch(`/workouts/${id}/analyze`, { method: 'POST' }),
 };
+
+// ── AI Coach API ────────────────────────────────────────────────────────────
+
+export const aiCoachApi = {
+  chat: (workoutId, message, history = []) =>
+    apiFetch('/ai-coach/chat', {
+      method: 'POST',
+      body: JSON.stringify({ workout_id: workoutId, message, history }),
+    }),
+};
