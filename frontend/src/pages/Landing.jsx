@@ -5,36 +5,29 @@ import { motion } from 'framer-motion';
 export default function Landing() {
   const { user } = useAuth();
 
-  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.2,
-      },
+      transition: { staggerChildren: 0.15 },
     },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 24 },
     show: { 
       opacity: 1, 
       y: 0, 
-      transition: { 
-        type: 'spring', 
-        stiffness: 70, 
-        damping: 15 
-      } 
+      transition: { type: 'spring', stiffness: 80, damping: 18 } 
     },
   };
 
   const cardVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
+    hidden: { opacity: 0, y: 20 },
     show: { 
       opacity: 1, 
-      scale: 1,
-      transition: { type: 'spring', stiffness: 50, damping: 15 }
+      y: 0,
+      transition: { type: 'spring', stiffness: 60, damping: 18 }
     },
   };
 
@@ -46,31 +39,6 @@ export default function Landing() {
         initial="hidden"
         animate="show"
       >
-        <motion.div 
-          className="hero-glow"
-          animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          style={{
-            position: 'absolute',
-            top: '20%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '600px',
-            height: '600px',
-            background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
-            pointerEvents: 'none',
-            zIndex: -1,
-            borderRadius: '50%'
-          }}
-        />
-
         <motion.h1 variants={itemVariants}>
           Train Smarter with{' '}
           <span className="text-gradient">AI-Powered</span> Insights
@@ -85,12 +53,14 @@ export default function Landing() {
         <motion.div className="flex gap-md" variants={itemVariants}>
           {user ? (
             <Link to="/dashboard" className="btn btn-primary btn-lg">
-              Go to Dashboard →
+              Go to Dashboard
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
             </Link>
           ) : (
             <>
               <Link to="/register" className="btn btn-primary btn-lg">
-                Get Started →
+                Get Started
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
               </Link>
               <Link to="/login" className="btn btn-secondary btn-lg">
                 Sign In
@@ -106,10 +76,10 @@ export default function Landing() {
           <motion.div 
             className="card feature-card"
             variants={cardVariants}
-            whileHover={{ y: -10, boxShadow: '0 20px 40px rgba(99, 102, 241, 0.1)' }}
+            whileHover={{ y: -6, transition: { duration: 0.2 } }}
           >
             <div className="feature-icon" style={{ color: 'var(--accent-primary)' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
               </svg>
             </div>
@@ -123,10 +93,10 @@ export default function Landing() {
           <motion.div 
             className="card feature-card"
             variants={cardVariants}
-            whileHover={{ y: -10, boxShadow: '0 20px 40px rgba(6, 182, 212, 0.1)' }}
+            whileHover={{ y: -6, transition: { duration: 0.2 } }}
           >
-            <div className="feature-icon" style={{ color: 'var(--accent-secondary)' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="feature-icon" style={{ color: 'var(--accent-secondary)', background: 'rgba(56, 189, 248, 0.08)', borderColor: 'rgba(56, 189, 248, 0.12)' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
               </svg>
             </div>
@@ -140,10 +110,10 @@ export default function Landing() {
           <motion.div 
             className="card feature-card"
             variants={cardVariants}
-            whileHover={{ y: -10, boxShadow: '0 20px 40px rgba(16, 185, 129, 0.1)' }}
+            whileHover={{ y: -6, transition: { duration: 0.2 } }}
           >
-            <div className="feature-icon" style={{ color: 'var(--accent-success)' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="feature-icon" style={{ color: 'var(--accent-success)', background: 'rgba(52, 211, 153, 0.08)', borderColor: 'rgba(52, 211, 153, 0.12)' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
               </svg>
             </div>

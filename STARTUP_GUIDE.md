@@ -1,7 +1,5 @@
 # System Startup Guide
 
-If you restart your computer or close all your terminals, follow these 4 steps to spin everything back up.
-
 You will need **3 separate terminal windows** open.
 
 ---
@@ -13,6 +11,9 @@ This runs the Python server that talks to your database.
 ```cmd
 cd c:\fitness-monitoring-system-IOT\backend
 uvicorn main:app --reload --port 8000
+/
+python -m uvicorn main:app --reload --port 8000
+
 ```
 *Leave this terminal running.*
 

@@ -61,7 +61,7 @@ export default function Profile() {
 
       <div className="card animate-in animate-in-delay-1">
         <div className="alert alert-info" style={{ marginBottom: 'var(--space-lg)' }}>
-          ℹ️ Changes to your profile will affect future workout analyses.
+          Changes to your profile will affect future workout analyses.
           Previously analyzed workouts will keep their original results.
         </div>
 
