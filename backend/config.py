@@ -20,3 +20,7 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "AI")
 MODEL_PATH = os.path.join(MODEL_DIR, "workout_model.joblib")
 MODEL_CONFIG_PATH = os.path.join(MODEL_DIR, "model_config.json")
+
+# Gemini AI Coach
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { workoutsApi } from '../lib/api';
 import EffectivenessGauge from '../components/EffectivenessGauge';
 import ShapExplanation from '../components/ShapExplanation';
+import AiCoach from '../components/AiCoach';
 
 const TYPE_OPTIONS = [
   { value: 'hypertrophy', name: 'Hypertrophy', desc: 'Standard 8-12 rep bodybuilding' },
@@ -138,6 +139,7 @@ export default function WorkoutDetail() {
   const [selectedType, setSelectedType] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showAiCoach, setShowAiCoach] = useState(false);
 
   useEffect(() => {
     if (successMsg) {
@@ -619,6 +621,36 @@ export default function WorkoutDetail() {
               </div>
             </div>
           </div>
+
+          {/* AI Coach Button */}
+          <div className="card mt-xl text-center animate-in animate-in-delay-4">
+            <h3 style={{ marginBottom: 'var(--space-sm)' }}>Want personalized advice?</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-lg)', fontSize: '0.9rem' }}>
+              Chat with your AI Coach about this workout — get tips on recovery, programming,
+              and how to improve your next session.
+            </p>
+            <button
+              className="ai-coach-btn"
+              onClick={() => setShowAiCoach(true)}
+              id="ai-coach-trigger"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+              AI Coach
+            </button>
+          </div>
+
+          {/* AI Coach Chatbot Panel */}
+          {showAiCoach && (
+            <AiCoach
+              workoutId={id}
+              workoutData={workout}
+              onClose={() => setShowAiCoach(false)}
+            />
+          )}
         </>
       )}
     </div>
