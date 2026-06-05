@@ -54,7 +54,7 @@ try:
     with open(_CONFIG_PATH, "r") as _f:
         _config = json.load(_f)
     AWS_API_ENDPOINT = _config.get("aws_api_url", "")
-    BACKEND_URL = _config.get("backend_url", "http://localhost:8000")
+    BACKEND_URL = _config.get("backend_url", "https://fitness-monitoring-system.onrender.com")
 except FileNotFoundError:
     print(f"[WARN] Config file not found at {_CONFIG_PATH}. Using defaults.")
     AWS_API_ENDPOINT = ""
