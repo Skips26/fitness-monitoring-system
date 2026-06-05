@@ -58,7 +58,7 @@ try:
 except FileNotFoundError:
     print(f"[WARN] Config file not found at {_CONFIG_PATH}. Using defaults.")
     AWS_API_ENDPOINT = ""
-    BACKEND_URL = "http://localhost:8000"
+    BACKEND_URL = "https://fitness-monitoring-system.onrender.com"
 
 # ADS1115
 ADS_DATA_RATE    = 250          # samples per second (860 max, but 250 is stable on shared I2C)
@@ -494,8 +494,9 @@ def compute_features():
         else:
             emg_fatigue = 0.0
 
-        # Fatigue can be negative if you got stronger at the end — clamp to 0
-        emg_fatigue = max(0.0, emg_fatigue)
+        # Clamp to [0, 60]: negative = got stronger (fine), >60 = likely sensor error
+        # Backend schema enforces le=60, so cap here before sending
+        emg_fatigue = max(0.0, min(60.0, emg_fatigue))
     else:
         avg_emg     = 0
         emg_fatigue = 0.0
@@ -517,53 +518,53 @@ def compute_features():
 
 
 # =============================================================================
-#  AWS DATA TRANSMISSION
+#  BACKEND DATA TRANSMISSION  —  POST directly to Render backend
 # =============================================================================
 
-def send_to_aws(features: dict):
+def send_to_backend(features: dict):
     """
-    POST the workout features to AWS API Gateway.
-    The Lambda function will forward the data to the FastAPI backend.
+    POST the workout features directly to the FastAPI backend (BACKEND_URL/workouts).
+    No AWS or Lambda involved — the Pi sends data straight to the server.
     Falls back gracefully if the network is unreachable.
     """
-    if not AWS_API_ENDPOINT or "YOUR_API_GATEWAY" in AWS_API_ENDPOINT:
-        print("\n[AWS]  ⚠️ AWS API endpoint not configured in config.json.")
-        print("       Skipping AWS upload. Data saved locally only.")
-        return False
+    url = f"{BACKEND_URL}/workouts"
 
-    # Include the selected user's ID in the payload
+    # Build payload: user_id + all sensor fields (drop the local workout_id)
     payload = {
         "user_id": selected_user["id"],
         **{k: v for k, v in features.items() if k != "workout_id"},
     }
 
-    print("\n[AWS]  Sending data to cloud …")
+    print(f"\n[NET]  Sending workout data to {url} …")
     try:
         response = requests.post(
-            AWS_API_ENDPOINT,
+            url,
             json=payload,
             headers={"Content-Type": "application/json"},
-            timeout=15,
+            timeout=20,
         )
         if response.status_code in (200, 201):
-            print(f"[AWS]  ✅ Data sent successfully (HTTP {response.status_code})")
+            print(f"[NET]  ✅ Data sent successfully (HTTP {response.status_code})")
             try:
                 resp_data = response.json()
-                if "workout" in resp_data:
-                    workout_id = resp_data["workout"].get("id", "unknown")
-                    print(f"[AWS]  📋 Workout ID in database: {workout_id}")
+                db_id = resp_data.get("id", "unknown")
+                print(f"[NET]  📋 Workout ID in database : {db_id}")
+                print(f"[NET]  📊 Status                 : {resp_data.get('status', '?')}")
             except Exception:
                 pass
             return True
         else:
-            print(f"[AWS]  ⚠️ Server responded with HTTP {response.status_code}")
-            print(f"       {response.text[:200]}")
+            print(f"[NET]  ⚠️ Server responded with HTTP {response.status_code}")
+            print(f"       {response.text[:300]}")
             return False
     except requests.exceptions.ConnectionError:
-        print("[AWS]  ❌ Could not reach the server. Data saved locally only.")
+        print(f"[NET]  ❌ Could not reach {BACKEND_URL}. Data saved locally only.")
+        return False
+    except requests.exceptions.Timeout:
+        print(f"[NET]  ❌ Request timed out. Data saved locally only.")
         return False
     except Exception as e:
-        print(f"[AWS]  ❌ Error: {e}")
+        print(f"[NET]  ❌ Unexpected error: {e}")
         return False
 
 
@@ -694,15 +695,16 @@ def main():
         print(f"  [STATS]  Reps counted : {len(rep_timestamps)}")
         print("-" * 60)
 
-        # ── Save locally + send to AWS ───────────────────────────────────
+        # ── Save locally + send to backend ──────────────────────────────
         save_locally(features)
-        aws_success = send_to_aws(features)
+        upload_success = send_to_backend(features)
 
-        if aws_success:
-            print("\n✅  Workout data sent to the cloud!")
-            print("    Open the website to review, edit, and analyze this workout.")
+        if upload_success:
+            print("\n✅  Workout data sent to the server!")
+            print("    Open the website to review, set workout type, and run AI analysis.")
         else:
-            print("\n⚠️  Workout saved locally only. Check your AWS/network config.")
+            print("\n⚠️  Workout saved locally only. Check your internet connection.")
+            print(f"    Backend URL : {BACKEND_URL}")
 
         print("\n✅  Ready for next workout.\n")
 
