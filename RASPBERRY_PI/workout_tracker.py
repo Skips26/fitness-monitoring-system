@@ -80,9 +80,9 @@ EMG_BASELINE_ALPHA   = 0.99     # moving-average smoothing for EMG baseline
 EMG_NOISE_DEFAULT    = 0.03     # default noise floor in volts
 
 # MPU6050 rep detection  (dynamic peak-valley algorithm)
-REP_DEVIATION_THRESH = 0.3      # g deviation from rest to start detecting a rep
-REP_COOLDOWN         = 0.5      # seconds between valid reps
-REP_SMOOTHING_ALPHA  = 0.25     # EMA smoothing factor for accel signal (0-1, lower = smoother)
+REP_DEVIATION_THRESH = 0.2      # g deviation from rest to start detecting a rep
+REP_COOLDOWN         = 1.0      # seconds between valid reps
+REP_SMOOTHING_ALPHA  = 0.5      # EMA alpha: higher = faster response to movement (0-1)
 REP_CALIBRATION_TIME = 1.0      # seconds spent calibrating rest magnitude at start
 
 # HR zone threshold
@@ -92,7 +92,7 @@ LOW_HR_ZONE          = 100      # BPM below this is "low"
 HR_SPIKE_DELTA       = 70       # BPM jump between consecutive readings
 
 # Sampling interval (seconds) — shared across sensor threads
-SAMPLE_INTERVAL      = 0.025    # 40 Hz — reduces I2C bus congestion with 3 threads
+SAMPLE_INTERVAL      = 0.04     # 25 Hz — safe rate for 3 devices sharing the I2C bus
 
 # =============================================================================
 #  GLOBAL STATE
@@ -115,6 +115,13 @@ data_lock = threading.Lock()
 
 # Thread-safe lock for I2C bus access (ADS1115 + MPU6050 share the bus)
 i2c_lock = threading.Lock()
+
+# Shared bus recovery flag — set by any thread when I2C errors cascade
+# All threads check this and back off together, allowing the bus to recover
+i2c_recovering  = False
+i2c_recover_until = 0.0           # time.time() value after which recovery is done
+I2C_RECOVERY_PAUSE = 0.6          # seconds all threads pause after a burst of errors
+I2C_ERROR_THRESHOLD = 3           # consecutive errors before triggering recovery
 
 
 # =============================================================================
@@ -241,22 +248,38 @@ def ecg_thread(ads):
     Detects heartbeats using a dynamic moving-average baseline + threshold.
     Logs every valid BPM reading with its timestamp.
     """
-    global workout_running
+    global workout_running, i2c_recovering, i2c_recover_until
 
     chan = AnalogIn(ads, ECG_CHANNEL)
 
-    # Seed the moving baseline
-    with i2c_lock:
-        moving_baseline = chan.voltage
+    # Seed the moving baseline — retry up to 10x on I2C error
+    moving_baseline = 1.65  # safe midpoint fallback (3.3V supply / 2)
+    for _attempt in range(10):
+        try:
+            with i2c_lock:
+                moving_baseline = chan.voltage
+            break
+        except OSError as e:
+            print(f"[ECG]  ⚠️ Seed read error (attempt {_attempt + 1}): {e}")
+            time.sleep(0.05)
     last_beat_time  = 0.0
 
     print("[ECG]  Thread started — monitoring heart rate")
 
+    ecg_consec_errors = 0
+
     while workout_running:
+        # ── Bus recovery back-off ─────────────────────────────────────
+        if i2c_recovering and time.time() < i2c_recover_until:
+            time.sleep(0.05)
+            continue
+        i2c_recovering = False
+
         try:
             with i2c_lock:
                 voltage = chan.voltage
             current_time = time.time()
+            ecg_consec_errors = 0   # reset error streak on success
 
             # Slow-moving baseline absorbs breathing/drift
             moving_baseline = (moving_baseline * ECG_BASELINE_ALPHA) + \
@@ -281,7 +304,14 @@ def ecg_thread(ads):
             time.sleep(SAMPLE_INTERVAL)
 
         except Exception as e:
-            print(f"[ECG]  ⚠️ Read error: {e}")
+            ecg_consec_errors += 1
+            if ecg_consec_errors >= I2C_ERROR_THRESHOLD:
+                print(f"[ECG]  🔴 Bus error burst — pausing {I2C_RECOVERY_PAUSE}s for recovery")
+                i2c_recovering   = True
+                i2c_recover_until = time.time() + I2C_RECOVERY_PAUSE
+                ecg_consec_errors = 0
+            else:
+                print(f"[ECG]  ⚠️ Read error: {e}")
             time.sleep(0.1)
 
     print("[ECG]  Thread stopped")
@@ -293,7 +323,7 @@ def emg_thread(ads):
     Uses a high-pass filter (moving baseline subtraction) to extract
     the active muscle signal, then logs the activation magnitude.
     """
-    global workout_running
+    global workout_running, i2c_recovering, i2c_recover_until
 
     chan = AnalogIn(ads, EMG_CHANNEL)
 
@@ -302,27 +332,50 @@ def emg_thread(ads):
     cal_start = time.time()
     min_v, max_v = 5.0, 0.0
     while time.time() - cal_start < 2.0:
-        with i2c_lock:
-            v = chan.voltage
-        if v > max_v: max_v = v
-        if v < min_v: min_v = v
+        try:
+            with i2c_lock:
+                v = chan.voltage
+            if v > max_v: max_v = v
+            if v < min_v: min_v = v
+        except OSError as e:
+            print(f"[EMG]  ⚠️ Calibration read error (skipping sample): {e}")
         time.sleep(SAMPLE_INTERVAL)
+
+    # If no valid samples were captured, fall back to a safe default
+    if min_v > max_v:
+        min_v, max_v = 1.6, 1.7
 
     noise_barrier = ((max_v - min_v) / 2.0) + 0.015
     if noise_barrier > 0.145:
         noise_barrier = 0.145
     print(f"[EMG]  Noise barrier = {noise_barrier:.4f} V")
 
-    with i2c_lock:
-        baseline = chan.voltage
+    # Seed baseline — retry up to 10x on I2C error
+    baseline = (min_v + max_v) / 2.0  # fallback: midpoint of calibration range
+    for _attempt in range(10):
+        try:
+            with i2c_lock:
+                baseline = chan.voltage
+            break
+        except OSError as e:
+            print(f"[EMG]  ⚠️ Baseline seed error (attempt {_attempt + 1}): {e}")
+            time.sleep(0.05)
 
     print("[EMG]  Thread started — monitoring muscle activation")
 
+    emg_consec_errors = 0
+
     while workout_running:
+        # ── Bus recovery back-off ─────────────────────────────────────
+        if i2c_recovering and time.time() < i2c_recover_until:
+            time.sleep(0.05)
+            continue
+
         try:
             with i2c_lock:
                 voltage = chan.voltage
             current_time = time.time()
+            emg_consec_errors = 0   # reset error streak on success
 
             # High-pass: track slow drift
             baseline = (baseline * EMG_BASELINE_ALPHA) + \
@@ -340,7 +393,14 @@ def emg_thread(ads):
             time.sleep(SAMPLE_INTERVAL)
 
         except Exception as e:
-            print(f"[EMG]  ⚠️ Read error: {e}")
+            emg_consec_errors += 1
+            if emg_consec_errors >= I2C_ERROR_THRESHOLD:
+                print(f"[EMG]  🔴 Bus error burst — pausing {I2C_RECOVERY_PAUSE}s for recovery")
+                i2c_recovering    = True
+                i2c_recover_until = time.time() + I2C_RECOVERY_PAUSE
+                emg_consec_errors = 0
+            else:
+                print(f"[EMG]  ⚠️ Read error: {e}")
             time.sleep(0.1)
 
     print("[EMG]  Thread stopped")
@@ -361,9 +421,12 @@ def mpu_thread(i2c_bus):
     because it adapts to the user's actual resting orientation and detects
     the full up-down cycle of a repetition.
     """
-    global workout_running
+    global workout_running, i2c_recovering, i2c_recover_until
 
-    # ── Calibrate rest magnitude ──────────────────────────────────────
+
+
+    # -- Calibrate rest magnitude --------------------------------------------------
+
     print(f"[MPU]  Calibrating rest position ({REP_CALIBRATION_TIME}s) — hold still …")
     cal_readings = []
     cal_start = time.time()
@@ -394,10 +457,18 @@ def mpu_thread(i2c_bus):
 
     print("[MPU]  Thread started — counting reps (peak-valley detection)")
 
+    mpu_consec_errors = 0
+
     while workout_running:
+        # ── Bus recovery back-off ─────────────────────────────────────
+        if i2c_recovering and time.time() < i2c_recover_until:
+            time.sleep(0.05)
+            continue
+
         try:
             _, _, _, raw_mag = mpu6050_read_accel(i2c_bus)
             current_time = time.time()
+            mpu_consec_errors = 0   # reset error streak on success
 
             # Exponential moving average to smooth out noise
             smoothed_mag = (REP_SMOOTHING_ALPHA * raw_mag +
@@ -433,7 +504,14 @@ def mpu_thread(i2c_bus):
             time.sleep(SAMPLE_INTERVAL)
 
         except Exception as e:
-            print(f"[MPU]  ⚠️ Read error: {e}")
+            mpu_consec_errors += 1
+            if mpu_consec_errors >= I2C_ERROR_THRESHOLD:
+                print(f"[MPU]  🔴 Bus error burst — pausing {I2C_RECOVERY_PAUSE}s for recovery")
+                i2c_recovering    = True
+                i2c_recover_until = time.time() + I2C_RECOVERY_PAUSE
+                mpu_consec_errors = 0
+            else:
+                print(f"[MPU]  ⚠️ Read error: {e}")
             time.sleep(0.1)
 
     print("[MPU]  Thread stopped")
