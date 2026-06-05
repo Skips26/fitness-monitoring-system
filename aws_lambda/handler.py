@@ -18,7 +18,7 @@ import urllib.request
 import urllib.error
 
 
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = os.environ.get("BACKEND_URL", "https://fitness-monitoring-system.onrender.com")
 
 
 def lambda_handler(event, context):
