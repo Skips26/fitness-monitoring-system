@@ -79,9 +79,11 @@ ECG_BPM_MAX          = 200
 EMG_BASELINE_ALPHA   = 0.99     # moving-average smoothing for EMG baseline
 EMG_NOISE_DEFAULT    = 0.03     # default noise floor in volts
 
-# MPU6050 rep detection
-REP_ACCEL_THRESHOLD  = 1.6      # g-force magnitude spike to count a rep
-REP_COOLDOWN         = 0.8      # seconds between valid reps
+# MPU6050 rep detection  (dynamic peak-valley algorithm)
+REP_DEVIATION_THRESH = 0.3      # g deviation from rest to start detecting a rep
+REP_COOLDOWN         = 0.5      # seconds between valid reps
+REP_SMOOTHING_ALPHA  = 0.25     # EMA smoothing factor for accel signal (0-1, lower = smoother)
+REP_CALIBRATION_TIME = 1.0      # seconds spent calibrating rest magnitude at start
 
 # HR zone threshold
 LOW_HR_ZONE          = 100      # BPM below this is "low"
@@ -347,30 +349,86 @@ def emg_thread(ads):
 def mpu_thread(i2c_bus):
     """
     Continuously reads the MPU6050 accelerometer.
-    Counts a 'rep' every time the total g-force magnitude exceeds
-    the threshold, with a cooldown to avoid double-counting.
+    Uses a dynamic peak-valley state-machine to count reps:
+
+    1. Auto-calibrates the "rest" magnitude at start (~1g when still).
+    2. Smooths the signal with an exponential moving average (EMA).
+    3. Detects reps by tracking deviations from the rest baseline:
+       - IDLE  → magnitude deviates beyond threshold → transition to PEAK
+       - PEAK  → magnitude returns near rest         → REP COUNTED, back to IDLE
+
+    This approach is far more sensitive than a fixed absolute threshold,
+    because it adapts to the user's actual resting orientation and detects
+    the full up-down cycle of a repetition.
     """
     global workout_running
 
-    # Establish a resting magnitude baseline (should be ~1.0 g at rest)
-    _, _, _, rest_mag = mpu6050_read_accel(i2c_bus)
+    # ── Calibrate rest magnitude ──────────────────────────────────────
+    print(f"[MPU]  Calibrating rest position ({REP_CALIBRATION_TIME}s) — hold still …")
+    cal_readings = []
+    cal_start = time.time()
+    while time.time() - cal_start < REP_CALIBRATION_TIME:
+        try:
+            _, _, _, mag = mpu6050_read_accel(i2c_bus)
+            cal_readings.append(mag)
+        except Exception:
+            pass
+        time.sleep(SAMPLE_INTERVAL)
 
+    if cal_readings:
+        rest_magnitude = statistics.mean(cal_readings)
+    else:
+        rest_magnitude = 1.0  # fallback: 1g at rest
+
+    print(f"[MPU]  Rest magnitude = {rest_magnitude:.3f} g  "
+          f"(threshold ±{REP_DEVIATION_THRESH} g)")
+
+    # ── State machine ─────────────────────────────────────────────────
+    STATE_IDLE = 0   # waiting for movement to start
+    STATE_PEAK = 1   # movement detected, waiting for return to rest
+
+    state         = STATE_IDLE
+    smoothed_mag  = rest_magnitude
     last_rep_time = 0.0
+    peak_value    = 0.0
 
-    print("[MPU]  Thread started — counting reps")
+    print("[MPU]  Thread started — counting reps (peak-valley detection)")
 
     while workout_running:
         try:
-            _, _, _, mag = mpu6050_read_accel(i2c_bus)
+            _, _, _, raw_mag = mpu6050_read_accel(i2c_bus)
             current_time = time.time()
 
-            # A rep is detected when the acceleration magnitude deviates
-            # significantly from the resting ~1g
-            if mag > REP_ACCEL_THRESHOLD and \
-               (current_time - last_rep_time) > REP_COOLDOWN:
-                with data_lock:
-                    rep_timestamps.append(current_time)
-                last_rep_time = current_time
+            # Exponential moving average to smooth out noise
+            smoothed_mag = (REP_SMOOTHING_ALPHA * raw_mag +
+                            (1 - REP_SMOOTHING_ALPHA) * smoothed_mag)
+
+            deviation = abs(smoothed_mag - rest_magnitude)
+
+            if state == STATE_IDLE:
+                # Waiting for the acceleration to deviate from rest
+                if deviation > REP_DEVIATION_THRESH:
+                    state = STATE_PEAK
+                    peak_value = deviation
+
+            elif state == STATE_PEAK:
+                # Track the peak deviation
+                if deviation > peak_value:
+                    peak_value = deviation
+
+                # When the acceleration returns close to rest → rep complete
+                if deviation < REP_DEVIATION_THRESH * 0.5:
+                    # Enforce cooldown to avoid double-counting
+                    if (current_time - last_rep_time) > REP_COOLDOWN:
+                        with data_lock:
+                            rep_timestamps.append(current_time)
+                        last_rep_time = current_time
+                        rep_count = len(rep_timestamps)
+                        print(f"[MPU]  🔄 Rep #{rep_count} detected  "
+                              f"(peak deviation: {peak_value:.2f} g)")
+
+                    state = STATE_IDLE
+                    peak_value = 0.0
 
             time.sleep(SAMPLE_INTERVAL)
 
