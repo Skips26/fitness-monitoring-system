@@ -39,10 +39,10 @@ export default function WorkoutCard({ workout }) {
       </div>
 
       {isPending && !workout.workout_type && (
-        <span className="badge badge-pending">⚡ Select Type</span>
+        <span className="badge badge-pending">Select Type</span>
       )}
       {isPending && workout.workout_type && (
-        <span className="badge badge-pending">🔄 Ready to Analyze</span>
+        <span className="badge badge-pending">Ready to Analyze</span>
       )}
       {isAnalyzed && (
         <span className={`badge badge-${LABEL_COLORS[workout.effectiveness_name]}`}>
@@ -63,7 +63,9 @@ export default function WorkoutCard({ workout }) {
           </>
         )}
         {!isAnalyzed && (
-          <span style={{ color: 'var(--text-muted)', fontSize: '1.2rem' }}>→</span>
+          <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </span>
         )}
       </div>
     </Link>

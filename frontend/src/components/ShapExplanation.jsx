@@ -1,19 +1,3 @@
-const FEATURE_ICONS = {
-  duration_mins: '⏱️',
-  avg_hr: '❤️',
-  max_hr: '💗',
-  hr_spikes: '📈',
-  pct_time_low: '😴',
-  avg_emg: '💪',
-  emg_fatigue: '🔥',
-  total_reps: '🔄',
-  age: '🎂',
-  fitness_level: '🏋️',
-  workout_type: '📋',
-  athlete_type: '🏅',
-  body_fat_pct: '⚖️',
-  limb_length: '📏',
-};
 
 export default function ShapExplanation({ topFactors, explanation }) {
   if (!topFactors || topFactors.length === 0) return null;
@@ -39,9 +23,6 @@ export default function ShapExplanation({ topFactors, explanation }) {
             key={factor.feature}
             style={{ animationDelay: `${idx * 0.1}s` }}
           >
-            <span style={{ fontSize: '1.3rem', minWidth: '32px', textAlign: 'center' }}>
-              {FEATURE_ICONS[factor.feature] || '📊'}
-            </span>
 
             <div style={{ flex: 1 }}>
               <div className="shap-factor-name">{factor.description}</div>

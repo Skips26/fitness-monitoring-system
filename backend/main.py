@@ -11,7 +11,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import CORS_ORIGINS
-from routers import profiles, workouts
+from routers import profiles, workouts, ai_coach
 
 # =============================================================================
 #  APP INITIALIZATION
@@ -38,6 +38,7 @@ app.add_middleware(
 
 app.include_router(profiles.router)
 app.include_router(workouts.router)
+app.include_router(ai_coach.router)
 
 
 # =============================================================================

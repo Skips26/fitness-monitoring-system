@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { workoutsApi } from '../lib/api';
 import EffectivenessGauge from '../components/EffectivenessGauge';
 import ShapExplanation from '../components/ShapExplanation';
+import AiCoach from '../components/AiCoach';
 
 const TYPE_OPTIONS = [
-  { value: 'hypertrophy', icon: '🏋️', name: 'Hypertrophy', desc: 'Standard 8-12 rep bodybuilding' },
-  { value: 'HILV', icon: '🔥', name: 'HILV', desc: 'High Intensity, Low Volume' },
-  { value: 'LIHV', icon: '🔄', name: 'LIHV', desc: 'Low Intensity, High Volume' },
-  { value: 'endurance_lifting', icon: '⚡', name: 'Endurance', desc: 'High rep endurance lifting' },
+  { value: 'hypertrophy', name: 'Hypertrophy', desc: 'Standard 8-12 rep bodybuilding' },
+  { value: 'HILV', name: 'HILV', desc: 'High Intensity, Low Volume' },
+  { value: 'LIHV', name: 'LIHV', desc: 'Low Intensity, High Volume' },
+  { value: 'endurance_lifting', name: 'Endurance', desc: 'High rep endurance lifting' },
 ];
 
 const LABEL_COLORS = {
@@ -24,7 +25,6 @@ const SENSOR_FIELDS = [
     key: 'duration_mins',
     label: 'Duration',
     unit: 'min',
-    icon: '⏱️',
     step: 0.1,
     min: 0.1,
     anomaly: (v) => v < 1 || v > 180,
@@ -39,7 +39,6 @@ const SENSOR_FIELDS = [
     key: 'avg_hr',
     label: 'Avg HR',
     unit: 'BPM',
-    icon: '❤️',
     step: 0.1,
     min: 0,
     anomaly: (v) => v < 40 || v > 220,
@@ -54,7 +53,6 @@ const SENSOR_FIELDS = [
     key: 'max_hr',
     label: 'Max HR',
     unit: 'BPM',
-    icon: '💗',
     step: 0.1,
     min: 0,
     anomaly: (v) => v < 50 || v > 230,
@@ -69,7 +67,6 @@ const SENSOR_FIELDS = [
     key: 'hr_spikes',
     label: 'HR Spikes',
     unit: '',
-    icon: '📈',
     step: 1,
     min: 0,
     anomaly: (v) => v > 50,
@@ -84,7 +81,6 @@ const SENSOR_FIELDS = [
     key: 'pct_time_low',
     label: 'Low Zone',
     unit: '%',
-    icon: '😴',
     step: 0.1,
     min: 0,
     anomaly: () => false, // pct is always valid 0-100
@@ -94,7 +90,6 @@ const SENSOR_FIELDS = [
     key: 'avg_emg',
     label: 'Avg EMG',
     unit: '',
-    icon: '💪',
     step: 0.1,
     min: 0,
     anomaly: (v) => v > 1000,
@@ -109,7 +104,6 @@ const SENSOR_FIELDS = [
     key: 'emg_fatigue',
     label: 'Fatigue',
     unit: '%',
-    icon: '🔥',
     step: 0.1,
     min: 0,
     anomaly: (v) => v > 60,
@@ -124,7 +118,6 @@ const SENSOR_FIELDS = [
     key: 'total_reps',
     label: 'Total Reps',
     unit: '',
-    icon: '🔄',
     step: 1,
     min: 0,
     anomaly: (v) => v === 0,
@@ -146,6 +139,14 @@ export default function WorkoutDetail() {
   const [selectedType, setSelectedType] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showAiCoach, setShowAiCoach] = useState(false);
+
+  useEffect(() => {
+    if (successMsg) {
+      const timer = setTimeout(() => setSuccessMsg(''), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg]);
 
   // Editable sensor data state
   const [editingField, setEditingField] = useState(null);
@@ -204,7 +205,6 @@ export default function WorkoutDetail() {
     setEditingField(fieldKey);
     setEditValue(String(workout[fieldKey]));
     setShowDefaultsFor(null);
-    setSuccessMsg('');
   };
 
   const cancelEditing = () => {
@@ -226,7 +226,6 @@ export default function WorkoutDetail() {
       setEditValue('');
       setShowDefaultsFor(null);
       setSuccessMsg(`${SENSOR_FIELDS.find(f => f.key === fieldKey)?.label || fieldKey} updated`);
-      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -275,11 +274,12 @@ export default function WorkoutDetail() {
         className="btn btn-ghost mb-lg animate-in"
         onClick={() => navigate('/dashboard')}
       >
-        ← Back to Dashboard
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        Back to Dashboard
       </button>
 
       {error && <div className="alert alert-error">{error}</div>}
-      {successMsg && <div className="alert alert-success">{successMsg}</div>}
+      {successMsg && <div className="alert alert-success toast-alert">{successMsg}</div>}
 
       {/* Header */}
       <div className="page-header animate-in">
@@ -328,7 +328,7 @@ export default function WorkoutDetail() {
       <div className="card mt-xl animate-in animate-in-delay-1">
         <div className="section-header" style={{ marginBottom: 'var(--space-lg)' }}>
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {isPending ? '📝 Step 1: Review & Edit Sensor Data' : '📊 Sensor Data'}
+            {isPending ? 'Step 1: Review & Edit Sensor Data' : 'Sensor Data'}
           </h3>
           {isPending && (
             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -353,7 +353,7 @@ export default function WorkoutDetail() {
               >
                 {/* Anomaly warning badge */}
                 {hasAnomaly && isPending && !isModified && (
-                  <div className="anomaly-badge" title={field.anomalyMsg}>⚠️</div>
+                  <div className="anomaly-badge" title={field.anomalyMsg}>!</div>
                 )}
 
                 {/* Modified indicator */}
@@ -361,7 +361,7 @@ export default function WorkoutDetail() {
                   <div className="modified-badge" title="Value was corrected">✓</div>
                 )}
 
-                <div className="stat-icon">{field.icon}</div>
+                {/* Icon removed */}
 
                 {isEditing ? (
                   /* ── Inline edit mode ──────────────────────────── */
@@ -409,7 +409,7 @@ export default function WorkoutDetail() {
                     >
                       {value}
                       {field.unit && <span className="stat-unit">{field.unit}</span>}
-                      {isPending && <span className="edit-icon">✎</span>}
+                      {isPending && <span className="edit-icon">Edit</span>}
                     </div>
                   </>
                 )}
@@ -493,7 +493,7 @@ export default function WorkoutDetail() {
       {isPending && (
         <div className="card mt-xl animate-in animate-in-delay-2">
           <h3 style={{ marginBottom: 'var(--space-md)' }}>
-            {needsType ? '🎯 Step 2: Select Workout Type' : '✅ Workout Type Selected'}
+            {needsType ? 'Step 2: Select Workout Type' : 'Workout Type Selected'}
           </h3>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-lg)', fontSize: '0.9rem' }}>
             What type of resistance training was this session? This helps the AI
@@ -507,7 +507,6 @@ export default function WorkoutDetail() {
                 className={`type-option ${selectedType === opt.value ? 'selected' : ''}`}
                 onClick={() => handleSetType(opt.value)}
               >
-                <div className="type-option-icon">{opt.icon}</div>
                 <div className="type-option-name">{opt.name}</div>
                 <div className="type-option-desc">{opt.desc}</div>
               </div>
@@ -520,7 +519,7 @@ export default function WorkoutDetail() {
       {readyToAnalyze && (
         <div className="card mt-xl text-center animate-in animate-in-delay-2">
           <h3 style={{ marginBottom: 'var(--space-md)' }}>
-            🤖 Step 3: Run AI Analysis
+            Step 3: Run AI Analysis
           </h3>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-lg)', fontSize: '0.9rem' }}>
             The AI will merge your demographic profile with the sensor data to predict
@@ -531,7 +530,7 @@ export default function WorkoutDetail() {
             onClick={handleAnalyze}
             disabled={analyzing}
           >
-            {analyzing ? '🤖 Analyzing...' : '🤖 Analyze Workout'}
+            {analyzing ? 'Analyzing...' : 'Analyze Workout'}
           </button>
         </div>
       )}
@@ -596,7 +595,7 @@ export default function WorkoutDetail() {
           {/* SHAP Explanation */}
           <div className="card mt-xl animate-in animate-in-delay-4">
             <h3 style={{ marginBottom: 'var(--space-lg)' }}>
-              🧠 AI Explanation — Why this rating?
+              AI Explanation — Why this rating?
             </h3>
             <ShapExplanation
               topFactors={workout.top_factors}
@@ -611,7 +610,6 @@ export default function WorkoutDetail() {
               <div>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</span>
                 <div style={{ fontWeight: 600, marginTop: '4px', fontSize: '1.1rem' }}>
-                  {TYPE_OPTIONS.find(t => t.value === workout.workout_type)?.icon}{' '}
                   {TYPE_OPTIONS.find(t => t.value === workout.workout_type)?.name || workout.workout_type}
                 </div>
               </div>
@@ -623,6 +621,36 @@ export default function WorkoutDetail() {
               </div>
             </div>
           </div>
+
+          {/* AI Coach Button */}
+          <div className="card mt-xl text-center animate-in animate-in-delay-4">
+            <h3 style={{ marginBottom: 'var(--space-sm)' }}>Want personalized advice?</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-lg)', fontSize: '0.9rem' }}>
+              Chat with your AI Coach about this workout — get tips on recovery, programming,
+              and how to improve your next session.
+            </p>
+            <button
+              className="ai-coach-btn"
+              onClick={() => setShowAiCoach(true)}
+              id="ai-coach-trigger"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+              AI Coach
+            </button>
+          </div>
+
+          {/* AI Coach Chatbot Panel */}
+          {showAiCoach && (
+            <AiCoach
+              workoutId={id}
+              workoutData={workout}
+              onClose={() => setShowAiCoach(false)}
+            />
+          )}
         </>
       )}
     </div>

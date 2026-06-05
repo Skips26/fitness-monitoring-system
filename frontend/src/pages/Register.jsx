@@ -112,7 +112,7 @@ export default function Register() {
                 className="btn btn-primary btn-lg w-full"
                 disabled={loading}
               >
-                {loading ? 'Creating account...' : 'Continue →'}
+                {loading ? 'Creating account...' : 'Continue'}
               </button>
             </form>
 
@@ -126,14 +126,14 @@ export default function Register() {
         {step === 2 && (
           <>
             <div className="alert alert-info" style={{ marginBottom: 'var(--space-lg)' }}>
-              ℹ️ This data is used by the AI model to personalize your workout analysis.
+              This data is used by the AI model to personalize your workout analysis.
               A heart rate of 160 BPM means something completely different for a 20-year-old
               athlete versus a 60-year-old beginner.
             </div>
 
             <DemographicForm
               onSubmit={handleDemographicSubmit}
-              submitLabel="Complete Setup →"
+              submitLabel="Complete Setup"
               loading={loading}
             />
           </>

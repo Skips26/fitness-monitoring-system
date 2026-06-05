@@ -1,7 +1,5 @@
 # System Startup Guide
 
-If you restart your computer or close all your terminals, follow these 4 steps to spin everything back up.
-
 You will need **3 separate terminal windows** open.
 
 ---
@@ -13,6 +11,9 @@ This runs the Python server that talks to your database.
 ```cmd
 cd c:\fitness-monitoring-system-IOT\backend
 uvicorn main:app --reload --port 8000
+/
+python -m uvicorn main:app --reload --port 8000
+
 ```
 *Leave this terminal running.*
 
@@ -63,3 +64,13 @@ curl -X POST https://z4mogo62zl.execute-api.eu-north-1.amazonaws.com/prod/workou
 ```bash
 python RASPBERRY_PI/workout_tracker.py
 ```
+npx plugins add vercel/vercel-plugin
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+DEPLOY LINK:
+https://fitness-monitoring-system.onrender.com backend
+
+fitness-monitoring-system.vercel.app frontend
+
+

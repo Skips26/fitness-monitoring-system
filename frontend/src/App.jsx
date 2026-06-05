@@ -8,11 +8,13 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import WorkoutDetail from './pages/WorkoutDetail';
 import Profile from './pages/Profile';
+import AuroraBackground from './components/AuroraBackground';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <AuroraBackground />
         <Navbar />
         <Routes>
           <Route path="/" element={<Landing />} />
