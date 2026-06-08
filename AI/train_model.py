@@ -51,9 +51,7 @@ import joblib
 warnings.filterwarnings('ignore')
 matplotlib.rcParams['figure.dpi'] = 120
 
-# =============================================================================
 #  1. CONFIGURATION
-# =============================================================================
 
 # Auto-detect environment (Kaggle vs local)
 if os.path.exists('/kaggle/input'):
@@ -82,9 +80,7 @@ FEATURE_COLS = [
 TARGET_COL = 'effectiveness_label'
 
 
-# =============================================================================
 #  2. LOAD & EXPLORE DATA
-# =============================================================================
 
 print("\n" + "=" * 62)
 print("  STEP 1: Loading dataset")
@@ -106,10 +102,7 @@ print(df.head().to_string())
 print(f"\n  Feature statistics:")
 print(df[FEATURE_COLS].describe().round(2).to_string())
 
-
-# =============================================================================
 #  3. PREPROCESSING
-# =============================================================================
 
 print("\n" + "=" * 62)
 print("  STEP 2: Preprocessing")
@@ -146,10 +139,7 @@ for label in sorted(y_train.unique()):
 missing = X.isnull().sum().sum()
 print(f"\n  Missing values: {missing}")
 
-
-# =============================================================================
 #  4. HYPERPARAMETER TUNING (RandomizedSearchCV)
-# =============================================================================
 
 # optimization technique: RandomizedSearchCV to find the best hyperparameters for XGBoost
 
@@ -204,9 +194,7 @@ for param, value in search.best_params_.items():
         print(f"    {param:22s}: {value}")
 
 
-# =============================================================================
 #  5. TRAIN FINAL MODEL WITH BEST PARAMETERS
-# =============================================================================
 
 print("\n" + "=" * 62)
 print("  STEP 4: Training Final Model")
@@ -232,9 +220,8 @@ print(f"\n  Test Accuracy:    {accuracy:.4f}  ({accuracy * 100:.1f}%)")
 print(f"  Test F1 (macro):  {f1_macro:.4f}")
 
 
-# =============================================================================
 #  6. CLASSIFICATION REPORT
-# =============================================================================
+
 
 print("\n" + "=" * 62)
 print("  STEP 5: Classification Report")
@@ -245,9 +232,7 @@ report = classification_report(y_test, y_pred, target_names=target_names)
 print(f"\n{report}")
 
 
-# =============================================================================
 #  7. CONFUSION MATRIX VISUALIZATION
-# =============================================================================
 
 print("  STEP 6: Confusion Matrix")
 print("=" * 62)
@@ -271,10 +256,8 @@ plt.savefig(os.path.join(OUTPUT_DIR, 'confusion_matrix.png'), bbox_inches='tight
 plt.show()
 print(f"  Saved: confusion_matrix.png")
 
-
-# =============================================================================
 #  8. FEATURE IMPORTANCE
-# =============================================================================
+
 
 
 # importance in training dataset. I need to know what feature contribute the most to the model performance
@@ -312,9 +295,7 @@ for _, row in feat_imp.iloc[::-1].iterrows():
     print(f"    {row['Feature']:18s}:  {row['Importance']:.4f}")
 
 
-# =============================================================================
 #  9. SHAP EXPLAINABILITY
-# =============================================================================
 
 
 # SHAP explanation: tells us why the model predicted a certain effectiveness label for a certain workout
@@ -399,9 +380,7 @@ plt.show()
 print(f"  Saved: shap_importance.png")
 
 
-# =============================================================================
 #  10. HUMAN-READABLE EXPLANATION FUNCTION
-# =============================================================================
 
 # Feature descriptions for generating natural-language explanations
 FEATURE_DESCRIPTIONS = {
@@ -550,9 +529,7 @@ def explain_prediction(model, explainer_obj, sample, top_k=3):
     }
 
 
-# =============================================================================
 #  11. DEMO: EXPLAIN EDGE-CASE PREDICTIONS
-# =============================================================================
 
 print("\n" + "=" * 62)
 print("  STEP 9: Prediction + Explanation Demo")
@@ -624,9 +601,7 @@ for scenario in demo_scenarios:
 print(f"\n  Demo accuracy: {correct}/{total} scenarios predicted correctly")
 
 
-# =============================================================================
 #  12. SAVE MODEL & ARTIFACTS FOR DEPLOYMENT
-# =============================================================================
 
 print("\n" + "=" * 62)
 print("  STEP 10: Saving Model & Artifacts")
