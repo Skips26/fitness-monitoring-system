@@ -6,10 +6,6 @@
   and computes aggregate features on STOP.
 =============================================================================
 
-Hardware wiring (recap):
-    AD8232 (ECG)  ->  ADS1115 channel A0  (I2C 0x48)
-    EMG sensor    ->  ADS1115 channel A1  (through voltage divider)
-    MPU6050       ->  direct I2C          (address 0x68)
 
 Features produced per workout:
     workout_id     – auto-generated UUID
@@ -41,10 +37,6 @@ from adafruit_ads1x15.ads1x15 import Pin
 
 # ── For sending data to AWS ──────────────────────────────────────────────────
 import requests  # pip install requests
-
-# =============================================================================
-#  CONFIGURATION
-# =============================================================================
 
 # Load config from config.json (same directory as this script)
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -81,7 +73,8 @@ EMG_NOISE_DEFAULT    = 0.03     # default noise floor in volts
 
 # MPU6050 rep detection  (dynamic peak-valley algorithm)
 REP_DEVIATION_THRESH = 0.2      # g deviation from rest to start detecting a rep
-REP_COOLDOWN         = 1.0      # seconds between valid reps
+REP_COOLDOWN         = 1.0      # seconds between valid reps( because of sensible sensitivity of the sensor
+                                # added a manual measured cooldown between reps(good be higher))
 REP_SMOOTHING_ALPHA  = 0.5      # EMA alpha: higher = faster response to movement (0-1)
 REP_CALIBRATION_TIME = 1.0      # seconds spent calibrating rest magnitude at start
 
@@ -89,14 +82,16 @@ REP_CALIBRATION_TIME = 1.0      # seconds spent calibrating rest magnitude at st
 LOW_HR_ZONE          = 100      # BPM below this is "low"
 
 # HR spike definition
-HR_SPIKE_DELTA       = 70       # BPM jump between consecutive readings
+HR_SPIKE_DELTA       = 70       # BPM jump between consecutive readings. 70 because at 40(it can detect random hardware faulty spikes)
 
 # Sampling interval (seconds) — shared across sensor threads
 SAMPLE_INTERVAL      = 0.04     # 25 Hz — safe rate for 3 devices sharing the I2C bus
+                                # can be changed but if it is lower than 0.02 it can cause i2c errors
+                                # tested till 0.02 and it worked, but i sugest not to lower it
+                                # it can be higher, but you will lose data
 
-# =============================================================================
-#  GLOBAL STATE
-# =============================================================================
+
+#  GLOBAL STATE (starting from here variables that change during the program execution)
 
 workout_running = False         # flag controlled by main thread
 
@@ -124,9 +119,10 @@ I2C_RECOVERY_PAUSE = 0.6          # seconds all threads pause after a burst of e
 I2C_ERROR_THRESHOLD = 3           # consecutive errors before triggering recovery
 
 
-# =============================================================================
+
 #  USER SELECTION  —  Fetch users from backend and prompt for selection
-# =============================================================================
+
+#if more users, we would change the process
 
 def fetch_users():
     """Fetch the list of registered users from the backend API."""
@@ -185,9 +181,7 @@ def select_user():
             print("  ⚠️  Please enter a valid number.")
 
 
-# =============================================================================
 #  MPU6050  —  Low-level I2C helpers  (no external library required)
-# =============================================================================
 
 def mpu6050_init(i2c_bus):
     """Wake up the MPU6050 and set full-scale range to ±4g."""
@@ -237,10 +231,10 @@ def _to_signed_16(msb, lsb):
         val -= 0x10000
     return val
 
-
-# =============================================================================
 #  SENSOR THREADS
-# =============================================================================
+# helps running simeultaniously the sensors, with minimal delay
+# uses i2c locks so it doesn't interfere with each other
+# uses a recovery flag so if one thread fails, all threads stop and wait for the bus to recover
 
 def ecg_thread(ads):
     """
@@ -423,7 +417,7 @@ def mpu_thread(i2c_bus):
     """
     global workout_running, i2c_recovering, i2c_recover_until
 
-
+# automatic calibration , helps with the idea of different angles the user can hold the device
 
     # -- Calibrate rest magnitude --------------------------------------------------
 
@@ -517,9 +511,8 @@ def mpu_thread(i2c_bus):
     print("[MPU]  Thread stopped")
 
 
-# =============================================================================
+
 #  FEATURE COMPUTATION
-# =============================================================================
 
 def compute_features():
     """
@@ -579,7 +572,7 @@ def compute_features():
         avg_emg     = 0
         emg_fatigue = 0.0
 
-    # ── Rep count ────────────────────────────────────────────────────────
+    # ── Rep count
     total_reps = len(rep_timestamps)
 
     return {
@@ -595,15 +588,16 @@ def compute_features():
     }
 
 
+
 # =============================================================================
-#  BACKEND DATA TRANSMISSION  —  POST directly to Render backend
+#  DATA TRANSMISSION
 # =============================================================================
 
 def send_to_backend(features: dict):
     """
     POST the workout features directly to the FastAPI backend (BACKEND_URL/workouts).
-    No AWS or Lambda involved — the Pi sends data straight to the server.
-    Falls back gracefully if the network is unreachable.
+    This is a DIRECT connection — bypasses AWS.
+    Kept as a fallback but NOT used in the main workflow.
     """
     url = f"{BACKEND_URL}/workouts"
 
@@ -646,6 +640,63 @@ def send_to_backend(features: dict):
         return False
 
 
+def send_to_aws(features: dict):
+    """
+    POST the workout features to AWS API Gateway.
+    Flow:  Raspberry Pi  →  API Gateway  →  Lambda  →  FastAPI Backend  →  Supabase
+    This is the primary IoT data path.
+    """
+    if not AWS_API_ENDPOINT:
+        print("[AWS]  ❌ No AWS API Gateway URL configured in config.json!")
+        print("       Set 'aws_api_url' in RASPBERRY_PI/config.json.")
+        return False
+
+    # Build payload: user_id + all sensor fields (drop the local workout_id)
+    payload = {
+        "user_id": selected_user["id"],
+        **{k: v for k, v in features.items() if k != "workout_id"},
+    }
+
+    print(f"\n[AWS]  Sending workout data to AWS API Gateway …")
+    print(f"[AWS]  Endpoint: {AWS_API_ENDPOINT}")
+    try:
+        response = requests.post(
+            AWS_API_ENDPOINT,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=25,
+        )
+        if response.status_code in (200, 201):
+            print(f"[AWS]  ✅ Data sent to AWS successfully (HTTP {response.status_code})")
+            try:
+                resp_data = response.json()
+                # Lambda response wraps the backend response
+                body = resp_data
+                if isinstance(resp_data.get("body"), str):
+                    body = json.loads(resp_data["body"])
+                workout_info = body.get("workout", body)
+                db_id = workout_info.get("id", "unknown")
+                print(f"[AWS]  📋 Workout ID in database : {db_id}")
+                print(f"[AWS]  🔗 Route: Pi → API Gateway → Lambda → Backend → Supabase")
+            except Exception:
+                pass
+            return True
+        else:
+            print(f"[AWS]  ⚠️ AWS responded with HTTP {response.status_code}")
+            print(f"       {response.text[:300]}")
+            return False
+    except requests.exceptions.ConnectionError:
+        print(f"[AWS]  ❌ Could not reach AWS API Gateway.")
+        print(f"       URL: {AWS_API_ENDPOINT}")
+        return False
+    except requests.exceptions.Timeout:
+        print(f"[AWS]  ❌ AWS request timed out (25s). Data saved locally only.")
+        return False
+    except Exception as e:
+        print(f"[AWS]  ❌ Unexpected error: {e}")
+        return False
+
+
 def save_locally(features: dict, filename="workout_log.json"):
     """Append the workout features to a local JSON-lines file as backup."""
     filepath = os.path.join(_SCRIPT_DIR, filename)
@@ -660,9 +711,8 @@ def save_locally(features: dict, filename="workout_log.json"):
     print(f"[LOG]  💾 Saved to {filepath}")
 
 
-# =============================================================================
+
 #  MAIN  —  INTERACTIVE WORKOUT LOOP
-# =============================================================================
 
 def main():
     global workout_running, workout_start, workout_end
@@ -773,20 +823,20 @@ def main():
         print(f"  [STATS]  Reps counted : {len(rep_timestamps)}")
         print("-" * 60)
 
-        # ── Save locally + send to backend ──────────────────────────────
+        # ── Save locally + send to AWS (IoT pipeline) ────────────────────
         save_locally(features)
-        upload_success = send_to_backend(features)
+        upload_success = send_to_aws(features)
 
         if upload_success:
-            print("\n✅  Workout data sent to the server!")
+            print("\n✅  Workout data sent via AWS IoT pipeline!")
+            print("    Route: Pi → AWS API Gateway → Lambda → Backend → Supabase")
             print("    Open the website to review, set workout type, and run AI analysis.")
         else:
             print("\n⚠️  Workout saved locally only. Check your internet connection.")
-            print(f"    Backend URL : {BACKEND_URL}")
+            print(f"    AWS Endpoint : {AWS_API_ENDPOINT}")
 
         print("\n✅  Ready for next workout.\n")
 
 
-# =============================================================================
 if __name__ == "__main__":
     main()

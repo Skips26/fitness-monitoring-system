@@ -69,7 +69,6 @@ npx plugins add vercel/vercel-plugin
 ---------------------------------------------------------------------------------------------------------------------------------------------
 
 DEPLOY LINK:
-https://fitness-monitoring-system.onrender.com backend
 
 fitness-monitoring-system.vercel.app frontend
 

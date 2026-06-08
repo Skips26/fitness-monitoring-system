@@ -6,7 +6,7 @@
   to predict workout effectiveness (0=Low, 1=Moderate, 2=High, 3=Maximum).
 
   Designed to run on Kaggle.  Upload synthetic_workouts.csv as a dataset,
-  then run this notebook/script.
+  then run this notebook/script. Not needed anymore****
 
   Pipeline:
       1. Load & explore data
@@ -151,6 +151,8 @@ print(f"\n  Missing values: {missing}")
 #  4. HYPERPARAMETER TUNING (RandomizedSearchCV)
 # =============================================================================
 
+# optimization technique: RandomizedSearchCV to find the best hyperparameters for XGBoost
+
 print("\n" + "=" * 62)
 print("  STEP 3: Hyperparameter Tuning (RandomizedSearchCV)")
 print("=" * 62)
@@ -274,6 +276,11 @@ print(f"  Saved: confusion_matrix.png")
 #  8. FEATURE IMPORTANCE
 # =============================================================================
 
+
+# importance in training dataset. I need to know what feature contribute the most to the model performance
+# so that i can prioritize what is actually important in my system
+
+
 print("\n" + "=" * 62)
 print("  STEP 7: Feature Importance")
 print("=" * 62)
@@ -308,6 +315,11 @@ for _, row in feat_imp.iloc[::-1].iterrows():
 # =============================================================================
 #  9. SHAP EXPLAINABILITY
 # =============================================================================
+
+
+# SHAP explanation: tells us why the model predicted a certain effectiveness label for a certain workout
+# it gives us a "per-prediction" explanation, which is much more useful than the global feature importance
+# it tells us which features pushed the prediction higher or lower from the base rate
 
 print("\n" + "=" * 62)
 print("  STEP 8: SHAP Explainability")
@@ -591,6 +603,8 @@ demo_scenarios = [
         'expected': 1,
     },
 ]
+
+#some automated testing.
 
 correct = 0
 total = len(demo_scenarios)
