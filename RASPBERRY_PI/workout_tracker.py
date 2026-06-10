@@ -77,7 +77,7 @@ REP_COOLDOWN         = 1.0      # seconds between valid reps( because of sensibl
                                 # added a manual measured cooldown between reps(good be higher))
 REP_SMOOTHING_ALPHA  = 0.5      # EMA alpha: higher = faster response to movement (0-1)
 REP_CALIBRATION_TIME = 1.0      # seconds spent calibrating rest magnitude at start
-
+#downside (differs from person to person, that s why we have thresholds)
 # HR zone threshold
 LOW_HR_ZONE          = 100      # BPM below this is "low"
 
